@@ -120,8 +120,9 @@ def evaluate(p, now):
     if qt and qt != "solana_So11111111111111111111111111111111111111112":
         fails.append(("quote not SOL", f"quote {qt.replace('solana_', '')[:6]}… not SOL"))
     bh1 = (tx.get("h1") or {}).get("buys") or 0; bm15 = (tx.get("m15") or {}).get("buys") or 0
+    m15_na = tx.get("m15") is None   # 2026-10-22: DexScreener has no m15 window -> GT enrichment; same gate, missing = fail
     if bh1 < RULES["min_buys_h1"]: fails.append((f"buys h1 < {RULES['min_buys_h1']}", f"buys h1 {bh1} < {RULES['min_buys_h1']}"))
-    if bm15 < RULES["min_buys_m15"]: fails.append((f"buys m15 < {RULES['min_buys_m15']}", f"buys m15 {bm15} < {RULES['min_buys_m15']}"))
+    if bm15 < RULES["min_buys_m15"]: fails.append((f"buys m15 < {RULES['min_buys_m15']}", "buys m15 n/a (no GeckoTerminal m15 data)" if m15_na else f"buys m15 {bm15} < {RULES['min_buys_m15']}"))
     if liq and vol / liq > R["max_vol24_to_liq"]:
         fails.append(("vol/liq wash", (f"vol/liq {vol/liq:.0f}x" if vol/liq < 1000 else "vol/liq >999x") + f" > {R['max_vol24_to_liq']}x wash"))
     for w in RULES["drop_if_sells_gt_buys_in"]:
@@ -143,7 +144,8 @@ def evaluate(p, now):
          "pc_m5": num(pc.get("m5")), "pc_m15": num(pc.get("m15")), "pc_m30": num(pc.get("m30")),
          "src": p.get("_src") or ["geckoterminal"],
          "buyers_h1": b1, "buyers_h6": b6, "score": round(buyer_growth - price_growth, 4),
-         "url": f"https://www.geckoterminal.com/solana/pools/{a['address']}",
+         "url": f"https://www.geckoterminal.com/solana/pools/{a['address']}", "m15_na": m15_na or None,
+         "data": ("dexscreener+gt" if p.get("_gt_enriched") else "dexscreener") if p.get("_ds") else "geckoterminal",
          "fail_keys": [k for k, _ in fails], "fails": why,
          "fp": json.dumps([tx.get("m15"), tx.get("h1"), mcap], sort_keys=True, default=str)}
     return c, why
@@ -246,18 +248,43 @@ def record_judge(run_id, decisions):
         f.write(json.dumps({"type": "judge", "run_id": run_id, "at": dt.datetime.now(BER).isoformat(timespec="seconds"),
                             "decisions": [{k: v for k, v in d.items() if v is not None and k not in ("score", "src", "venue")} for d in decisions]}, default=str, separators=(",", ":")) + "\n")
 
-def scan(dry=False):
-    """dry=True: evaluate only (no reject/scan files, no fingerprint update, no meme.log line)."""
-    os.makedirs(f"{DESK}/scan", exist_ok=True)
-    try: _fpd = json.load(open(FP_FILE))
-    except (FileNotFoundError, ValueError): _fpd = {}
-    prev_fp = _fpd.get("fp", {}); prev_n = _fpd.get("streak", {})   # streak = consecutive scans with this exact fingerprint
-    new_fp, new_n = {}, {}
-    now = dt.datetime.now(UTC)
+# 2026-10-22 USER ORDER (Dominic 14:53): DexScreener is the primary scan data source; GeckoTerminal only for the fields
+# DexScreener lacks (txns m15, unique buyers, price change m15/m30: <= 1 /pools/multi call for pools that already pass every
+# other gate) and as full fallback when DexScreener returns nothing. DESK_SCAN_SOURCE=geckoterminal = old path (parity/rollback).
+SCAN_SOURCE = os.environ.get("DESK_SCAN_SOURCE", "dexscreener")
+ENRICH_KEYS = {f"buys m15 < {RULES['min_buys_m15']}"}   # fail keys that depend only on GT-only fields
+
+def ds_collect(now, wl, deadline):
+    """Returns (pools, gt_calls, errs, src_stats) with DexScreener-mapped pools (+ GT overlay on the gate-passers)."""
+    import sources
+    watch = {k: v.get("mint") for k, v in wl.items()}
+    pools, pf_only, st, errs = sources.ds_universe(watch, min(deadline, time.time() + 25))
+    sols = sorted(num(p["attributes"].get("quote_token_price_usd")) for p in pools.values() if (num(p["attributes"].get("quote_token_price_usd")) or 0) > 1)
+    SOL_FALLBACK[0] = sols[len(sols) // 2] if sols else None
+    cool = cooldown_active(now); pre = []
+    for p in pools.values():   # first pass on DexScreener fields: who passes every gate except the GT-only ones?
+        c, why = evaluate(p, now)
+        if c is None or not set(c["fail_keys"]) <= ENRICH_KEYS: continue
+        if cool.get(c["base_token"]) or cool.get(c["pool"]): continue
+        pre.append((c["pool"] in wl, "wallet" in (p.get("_src") or []), (c["tx_h1"] or {}).get("buys") or 0, c["pool"]))
+    pre.sort(reverse=True)
+    want = [x[3] for x in pre] + [a for a in pf_only if a not in {x[3] for x in pre}]
+    g, calls, ge = sources.gt_enrich(want, deadline); errs += ge
+    by_addr = {p["attributes"]["address"]: p for p in pools.values()}
+    n_ov = n_pf = 0
+    for addr, gp in g.items():
+        if addr in by_addr: sources.gt_overlay(by_addr[addr], gp); n_ov += 1
+        elif addr in pf_only:
+            gp["_src"] = pf_only[addr][1]; pools[gp["id"]] = gp; n_pf += 1
+    st.update({"gt_enrich_wanted": len(pre), "gt_enrich_pf_only_wanted": len(want) - len(pre), "gt_enrich_requested": min(len(want), sources.GT_ENRICH_MAX),
+               "gt_enriched": n_ov, "gt_pf_only_added": n_pf, "gt_enrich_calls": calls})
+    return pools, calls, errs, st
+
+def gecko_collect(wl):
+    """Old path (until 2026-10-22): 6 GeckoTerminal list calls + pump.fun/DexScreener extras enriched by GT /pools/multi."""
     pools, calls, errs, deadline = gecko_pools(); source = "geckoterminal"
     gt_n = len(pools); src_stats = {"geckoterminal_pools": gt_n}
     def mint_of(p): return ((p.get("relationships") or {}).get("base_token", {}).get("data") or {}).get("id", "").replace("solana_", "")
-    wl = watchlist_active(now)
     try:
         import sources
         known = {mint_of(p) for p in pools.values()}
@@ -273,6 +300,25 @@ def scan(dry=False):
     if not pools:
         try: pools = dexscreener_fallback(); source = "dexscreener (fallback)"
         except Exception as e: errs.append(f"dexscreener: {e}")
+    return pools, calls, errs, src_stats, source, gt_n
+
+def scan(dry=False, source=None):
+    """dry=True: evaluate only (no reject/scan files, no fingerprint update, no meme.log line)."""
+    os.makedirs(f"{DESK}/scan", exist_ok=True)
+    try: _fpd = json.load(open(FP_FILE))
+    except (FileNotFoundError, ValueError): _fpd = {}
+    prev_fp = _fpd.get("fp", {}); prev_n = _fpd.get("streak", {})   # streak = consecutive scans with this exact fingerprint
+    new_fp, new_n = {}, {}
+    now = dt.datetime.now(UTC)
+    wl = watchlist_active(now); src_mode = source or SCAN_SOURCE; pools, calls, errs, src_stats = {}, 0, [], {}
+    if src_mode == "dexscreener":
+        try: pools, calls, errs, src_stats = ds_collect(now, wl, time.time() + SCAN_BUDGET_S)
+        except Exception as e: errs.append(f"dexscreener scan: {type(e).__name__} {str(e)[:80]}")
+        source = "dexscreener (+GT m15/buyers)"; gt_n = 0; src_stats["dexscreener_pools"] = len(pools)
+        if not pools: src_mode = "geckoterminal"; src_stats["ds_failed_fallback_gt"] = True   # DexScreener down -> old path
+    if src_mode != "dexscreener":
+        p_, c_, e_, s_, source, gt_n = gecko_collect(wl)
+        pools, calls, errs = p_, calls + c_, errs + e_; src_stats.update(s_)
     sols = sorted(num(p["attributes"].get("quote_token_price_usd")) for p in pools.values()
                   if (num(p["attributes"].get("quote_token_price_usd")) or 0) > 1)
     SOL_FALLBACK[0] = sols[len(sols) // 2] if sols else None
@@ -334,16 +380,18 @@ def scan(dry=False):
            "sources": src_stats, "cooldown_active": len({v["name"] for v in cool.values()}), "cooldown_rejected": n_cool,
            "watchlist_size": len(wl)}
     out["run_id"] = f"{now.astimezone(BER):%Y%m%dT%H%M%S}"
-    single = [c for c in rejects if len(c["fail_keys"]) == 1]   # shadow book (meme.py): exactly one SCAN filter failed
+    # shadow book (meme.py): exactly one SCAN filter failed. A pool whose only "failure" is missing GT m15 data (not enriched)
+    # is NOT a real one-gate miss -> excluded (2026-10-22 DexScreener data source)
+    single = [c for c in rejects if len(c["fail_keys"]) == 1 and not c.get("m15_na")]
     if dry:
         out["single_fail"] = single
-        print(f"[SCAN-DRY] {source}: {len(pools)} pools (GT lists {gt_n} + extra {len(pools)-gt_n}; {calls} GT calls), {len(cands)} passed, cooldown-rejected {n_cool}, watchlist {len(wl)} | {src_stats} | errors {errs}", file=sys.stderr); return out
+        print(f"[SCAN-DRY] {source}: {len(pools)} pools (" + (f"DexScreener {src_stats.get('ds_pairs')}, GT-enriched {src_stats.get('gt_enriched')} + pf-only {src_stats.get('gt_pf_only_added')}" if gt_n == 0 and src_stats.get("dexscreener_pools") else f"GT lists {gt_n} + extra {len(pools)-gt_n}") + f"; {calls} GT calls), {len(cands)} passed, cooldown-rejected {n_cool}, watchlist {len(wl)} | {src_stats} | errors {errs}", file=sys.stderr); return out
     if pools:
         tmp = FP_FILE + ".tmp"; json.dump({"at": out["scanned_at"], "fp": new_fp, "streak": new_n}, open(tmp, "w")); os.replace(tmp, FP_FILE)
     persist_rejects(out, rejects)
     with open(f"{DESK}/scan/{now.astimezone(BER):%Y-%m-%d_%H%M}.json", "w") as fh: json.dump(out, fh, indent=1)
     out["single_fail"] = single   # in-memory only (not written to the scan file)
-    log(f"[SCAN] {source}: {len(pools)} pump.fun/PumpSwap pools seen (GT lists {gt_n} + extra {len(pools)-gt_n}; {calls} GT calls), {len(cands)} passed, cooldown {n_cool}, watchlist {len(wl)}" +
+    log(f"[SCAN] {source}: {len(pools)} pump.fun/PumpSwap pools seen (" + (f"DexScreener {src_stats.get('ds_pairs')}, GT-enriched {src_stats.get('gt_enriched')} + pf-only {src_stats.get('gt_pf_only_added')}" if gt_n == 0 and src_stats.get("dexscreener_pools") else f"GT lists {gt_n} + extra {len(pools)-gt_n}") + f"; {calls} GT calls), {len(cands)} passed, cooldown {n_cool}, watchlist {len(wl)}" +
         ("" if not cands else " | top: " + ", ".join(f"{c['name']} [{c['venue']}] score {c['score']:+.2f}" + (f" Wallet: {c['wallet']['n']} of {c['wallet']['of']}" if c.get("wallet") else "") for c in cands[:3])) +
         (f" | errors: {len(errs)}" if errs else ""))
     return out
