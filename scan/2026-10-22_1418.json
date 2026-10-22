@@ -1,0 +1,172 @@
+{
+ "scanned_at": "2026-10-22T14:18:01+02:00",
+ "network": "solana",
+ "source": "geckoterminal",
+ "pump_fun_frontend_api": "frontend-api-v3 feeds used as extra candidate source (sources.py)",
+ "gt_calls": 4,
+ "pools_seen": 80,
+ "rejected_by_first_rule": {
+  "age > 72h": 2,
+  "mcap < $15.0k": 1,
+  "liquidity < $5.0k": 31,
+  "curve complete": 5,
+  "liquidity < $12.0k": 18,
+  "vol/liq wash": 2,
+  "age < 15m": 16
+ },
+ "rejected_by_reason": {
+  "age > 72h": 2,
+  "liquidity < $5.0k": 47,
+  "mcap < $15.0k": 47,
+  "quote not SOL": 7,
+  "stale data": 47,
+  "24h vol < $20.0k": 19,
+  "curve complete": 5,
+  "buys h1 < 10": 55,
+  "buys m15 < 2": 52,
+  "vol/liq wash": 42,
+  "sells > buys m15": 21,
+  "sells > buys h1": 23,
+  "liquidity < $12.0k": 18,
+  "mcap > $8.00M": 3,
+  "mcap < $40.0k": 3,
+  "age < 15m": 16,
+  "24h vol < $40.0k": 2
+ },
+ "rejected_total": 75,
+ "bonding_curve_liq_derived": 47,
+ "venue_stats": {
+  "bonding_curve": {
+   "evaluated": 54,
+   "passed": 1,
+   "rejected": 53,
+   "gt_liq_zero_or_null": 5,
+   "gt_zero_now_pass_liq": 4,
+   "fail_liq_derived": 41
+  },
+  "pumpswap": {
+   "evaluated": 22,
+   "passed": 0,
+   "rejected": 22,
+   "gt_liq_zero_or_null": 0,
+   "gt_zero_now_pass_liq": 0,
+   "fail_liq_derived": 0
+  }
+ },
+ "errors": [
+  "/networks/solana/dexes/pumpswap/pools p2: GeckoTerminal 429 on /networks/solana/dexes/pumpswap/pools (no retry: deadline)",
+  "/networks/solana/new_pools p2: GeckoTerminal 429 on /networks/solana/new_pools (no retry: deadline)",
+  "extra gt multi: RuntimeError GeckoTerminal 429 on /networks/solana/pools/multi/CDabtqJX1V"
+ ],
+ "rules": {
+  "bonding_curve": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 15000,
+   "mcap_max": 90000,
+   "vol24_min": 20000,
+   "liq_min": 5000,
+   "max_vol24_to_liq": 100
+  },
+  "pumpswap": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 40000,
+   "mcap_max": 8000000,
+   "vol24_min": 40000,
+   "liq_min": 12000,
+   "max_vol24_to_liq": 40
+  },
+  "max_out": 25,
+  "drop_if_sells_gt_buys_in": [
+   "m15",
+   "h1"
+  ],
+  "quote": "SOL only (custom-pair coins dropped)",
+  "min_buys_h1": 10,
+  "min_buys_m15": 2,
+  "curve_complete_sol": 80,
+  "stale": "reject if txns (m15+h1) and mcap unchanged for 3 consecutive scans (current = previous 2)",
+  "stale_scans": 3
+ },
+ "candidates": [
+  {
+   "pool": "99wQueoP8rDdqW7Jjsex7Px7VWr7QocpoxaHCeQM8q37",
+   "name": "replicator / SOL",
+   "venue": "bonding_curve",
+   "dex": "pump-fun",
+   "base_token": "F91maFz46bAzVEzjXzJdnAu29cmbH5aq6EKFdEYkDrty",
+   "age_h": 6.25,
+   "liquidity_usd": 7863.08,
+   "liq_derived": true,
+   "gt_reserve_usd": 8781.797,
+   "curve": {
+    "virtual_sol": 105.4338,
+    "real_sol": 75.4338,
+    "sol_usd": 104.23813525310122,
+    "virtual_tokens": 305310146,
+    "progress_pct": 88.7,
+    "suspect": false,
+    "complete": false
+   },
+   "vol_h24": 242498.7,
+   "vol_h6": 178236.126127445,
+   "mcap_usd": 35913.55965,
+   "price_usd": 3.5996902881380106e-05,
+   "sol_usd": 104.23813525310122,
+   "tx_m15": {
+    "buys": 55,
+    "sells": 21,
+    "buyers": 44,
+    "sellers": 20
+   },
+   "tx_h1": {
+    "buys": 153,
+    "sells": 94,
+    "buyers": 116,
+    "sellers": 77
+   },
+   "pc_h1": 4.295,
+   "pc_m5": -0.532,
+   "pc_m15": 11.764,
+   "pc_m30": 8.486,
+   "src": [
+    "geckoterminal"
+   ],
+   "buyers_h1": 116,
+   "buyers_h6": 963,
+   "score": -0.3644,
+   "url": "https://www.geckoterminal.com/solana/pools/99wQueoP8rDdqW7Jjsex7Px7VWr7QocpoxaHCeQM8q37",
+   "fail_keys": [],
+   "fails": [],
+   "fp": "[{\"buyers\": 44, \"buys\": 55, \"sellers\": 20, \"sells\": 21}, {\"buyers\": 116, \"buys\": 153, \"sellers\": 77, \"sells\": 94}, 35913.55965]",
+   "lead": "LF91maF"
+  }
+ ],
+ "sources": {
+  "geckoterminal_pools": 80,
+  "wallet_signal_mints": 0,
+  "pf_live": 49,
+  "pf_active": 50,
+  "pf_active2": 50,
+  "pf_curve_top": 50,
+  "ds_profiles": 25,
+  "ds_boosts": 26,
+  "ds_boosts_top": 26,
+  "ds_search_pumpswap": 30,
+  "ds_search_pumpfun": 30,
+  "ds_token_calls": 2,
+  "extra_mints": 94,
+  "prefilter_dropped": 70,
+  "prefilter_kept": 24,
+  "extra_requested": 24,
+  "extra_returned": 0,
+  "extra_gt_calls": 0,
+  "extra_pools_added": 0,
+  "wallet_signal_matched": 0
+ },
+ "cooldown_active": 35,
+ "cooldown_rejected": 0,
+ "watchlist_size": 0,
+ "run_id": "20261022T141801"
+}
