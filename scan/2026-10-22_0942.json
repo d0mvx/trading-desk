@@ -1,0 +1,172 @@
+{
+ "scanned_at": "2026-10-22T09:42:02+02:00",
+ "network": "solana",
+ "source": "geckoterminal",
+ "pump_fun_frontend_api": "frontend-api-v3 feeds used as extra candidate source (sources.py)",
+ "gt_calls": 6,
+ "pools_seen": 115,
+ "rejected_by_first_rule": {
+  "age > 72h": 2,
+  "mcap < $15.0k": 1,
+  "liquidity < $5.0k": 31,
+  "curve complete": 5,
+  "liquidity < $12.0k": 33,
+  "vol/liq wash": 3,
+  "buys h1 < 10": 3,
+  "mcap > $8.00M": 1,
+  "age < 15m": 28
+ },
+ "rejected_by_reason": {
+  "age > 72h": 2,
+  "liquidity < $5.0k": 57,
+  "mcap < $15.0k": 55,
+  "quote not SOL": 6,
+  "buys h1 < 10": 79,
+  "buys m15 < 2": 73,
+  "stale data": 65,
+  "24h vol < $20.0k": 29,
+  "curve complete": 5,
+  "vol/liq wash": 60,
+  "sells > buys m15": 17,
+  "sells > buys h1": 24,
+  "liquidity < $12.0k": 34,
+  "mcap < $40.0k": 5,
+  "mcap > $8.00M": 3,
+  "age < 15m": 28,
+  "24h vol < $40.0k": 3
+ },
+ "rejected_total": 107,
+ "bonding_curve_liq_derived": 59,
+ "venue_stats": {
+  "bonding_curve": {
+   "evaluated": 65,
+   "passed": 1,
+   "rejected": 64,
+   "gt_liq_zero_or_null": 5,
+   "gt_zero_now_pass_liq": 4,
+   "fail_liq_derived": 52
+  },
+  "pumpswap": {
+   "evaluated": 43,
+   "passed": 0,
+   "rejected": 43,
+   "gt_liq_zero_or_null": 0,
+   "gt_zero_now_pass_liq": 0,
+   "fail_liq_derived": 0
+  }
+ },
+ "errors": [
+  "extra gt multi: Budget GT budget: would wait 25s past deadline"
+ ],
+ "rules": {
+  "bonding_curve": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 15000,
+   "mcap_max": 90000,
+   "vol24_min": 20000,
+   "liq_min": 5000,
+   "max_vol24_to_liq": 100
+  },
+  "pumpswap": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 40000,
+   "mcap_max": 8000000,
+   "vol24_min": 40000,
+   "liq_min": 12000,
+   "max_vol24_to_liq": 40
+  },
+  "max_out": 25,
+  "drop_if_sells_gt_buys_in": [
+   "m15",
+   "h1"
+  ],
+  "quote": "SOL only (custom-pair coins dropped)",
+  "min_buys_h1": 10,
+  "min_buys_m15": 2,
+  "curve_complete_sol": 80,
+  "stale": "reject if txns (m15+h1) and mcap unchanged for 3 consecutive scans (current = previous 2)",
+  "stale_scans": 3
+ },
+ "candidates": [
+  {
+   "pool": "99wQueoP8rDdqW7Jjsex7Px7VWr7QocpoxaHCeQM8q37",
+   "name": "replicator / SOL",
+   "venue": "bonding_curve",
+   "dex": "pump-fun",
+   "base_token": "F91maFz46bAzVEzjXzJdnAu29cmbH5aq6EKFdEYkDrty",
+   "age_h": 1.65,
+   "liquidity_usd": 6960.48,
+   "liq_derived": true,
+   "gt_reserve_usd": 8553.1049,
+   "curve": {
+    "virtual_sol": 96.6704,
+    "real_sol": 66.6704,
+    "sol_usd": 104.40142045836653,
+    "virtual_tokens": 332987175,
+    "progress_pct": 78.4,
+    "suspect": false,
+    "complete": false
+   },
+   "vol_h24": 177285.29,
+   "vol_h6": 177285.291480352,
+   "mcap_usd": 30063.07086,
+   "price_usd": 3.0309053292015854e-05,
+   "sol_usd": 104.40142045836653,
+   "tx_m15": {
+    "buys": 102,
+    "sells": 55,
+    "buyers": 74,
+    "sellers": 50
+   },
+   "tx_h1": {
+    "buys": 567,
+    "sells": 394,
+    "buyers": 277,
+    "sellers": 251
+   },
+   "pc_h1": 39.591,
+   "pc_m5": -6.028,
+   "pc_m15": 27.479,
+   "pc_m30": 83.946,
+   "src": [
+    "geckoterminal"
+   ],
+   "buyers_h1": 277,
+   "buyers_h6": 893,
+   "score": -0.9997,
+   "url": "https://www.geckoterminal.com/solana/pools/99wQueoP8rDdqW7Jjsex7Px7VWr7QocpoxaHCeQM8q37",
+   "fail_keys": [],
+   "fails": [],
+   "fp": "[{\"buyers\": 74, \"buys\": 102, \"sellers\": 50, \"sells\": 55}, {\"buyers\": 277, \"buys\": 567, \"sellers\": 251, \"sells\": 394}, 30063.07086]",
+   "lead": "LF91maF"
+  }
+ ],
+ "sources": {
+  "geckoterminal_pools": 115,
+  "wallet_signal_mints": 0,
+  "pf_live": 45,
+  "pf_active": 50,
+  "pf_active2": 50,
+  "pf_curve_top": 50,
+  "ds_profiles": 26,
+  "ds_boosts": 23,
+  "ds_boosts_top": 26,
+  "ds_search_pumpswap": 30,
+  "ds_search_pumpfun": 30,
+  "ds_token_calls": 3,
+  "extra_mints": 100,
+  "prefilter_dropped": 67,
+  "prefilter_kept": 33,
+  "extra_requested": 30,
+  "extra_returned": 0,
+  "extra_gt_calls": 0,
+  "extra_pools_added": 0,
+  "wallet_signal_matched": 0
+ },
+ "cooldown_active": 31,
+ "cooldown_rejected": 0,
+ "watchlist_size": 0,
+ "run_id": "20261022T094202"
+}
