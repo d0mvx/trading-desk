@@ -169,3 +169,9 @@ Revert recipe (generic): `cp -p ~/.desk/<backup>/<file> ~/.desk/<file>` for each
 - **Dashboard:** `build_dashboard.py` adds bank start_eur, epoch, started_at, started_label and previous. `dash_savip.py` shows the balance "since reset (100 €, 21.10. 20:21)" and a Vorperiode-1 note. Published 20:22, and the widget feed shows balance 112.15, start 112.15, P&L 0, 0 open.
 - **Files:** new `bank_reset.py`. Changed: meme.py, build_dashboard.py, dash_savip.py, bank.json, meme_positions.json, history.csv, risk_state.json, meme_cooldown.json, plus a new test `test_epoch_reset_record_replaces_sticky_halt`. Tests: `pytest tests --ignore=tests/backtest` 66 passed, `tests/run_all.sh` OK.
 - **Backup:** `backup_20261021_2020_bank_reset_100eur/`. **Revert:** restore the listed files from the backup (incl. logs/risk_state.jsonl and history.csv), delete bank_reset.py, the archive/*epoch1* files and the new test.
+
+## 2026-10-22 11:00 — NOTE (no code change): I-18 evidence correction
+- Re-check found the I-18 OOS result (WF 3/3, holdout 5/5) is driven by spoof-pool price prints in the pump.fun swap-api (27 of 33 blocked coins). On clean coins there is no effect. Live gate is unchanged (still True; 41 picks, 0 blocked so far). Decision on switching it to shadow (I18_GATE_ENABLED = False) is with Dominic. Details: tests/backtest/meme/d0x_progress.md (Schritt 0b).
+
+## 2026-10-22 12:30 — NOTE (no code change): the I-18 evidence correction of 11:00 is WITHDRAWN
+- On-chain check: the "spoof" prices are real prices of the migration pool (pool balances after the tx match the API price within 5–7 %). The I-18 OOS evidence stands as originally logged; a clean re-test with a dust filter is running (tests/backtest/meme/clean_progress.md).
