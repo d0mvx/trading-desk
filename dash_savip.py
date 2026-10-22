@@ -675,6 +675,7 @@ def page(G, SV):
 <div id="eqc"></div><div class="eqr"><div class="seg"><button type="button" data-k="r" data-v="today">Heute</button><button type="button" data-k="r" data-v="7d">7 Tage</button><button type="button" data-k="r" data-v="all">Alles</button></div><div class="eqtt" id="eqtt"></div></div>
 <div class="eqn" id="eqnote">Meme-Bank = Desk-Equity aus history.csv (alle 5 Min) · Alpaca = Paper-Konto (Portfolio-History) · Pfeile = größte Trades</div></section></div></details>
 <details class="sec" id="d-closed"><summary>Heute geschlossen</summary><div class="body" id="f-closed">{frag["closed"]}</div></details>
+<details class="sec" id="d-learn"><summary>Lernt dazu (Self-Learner)<span class="sm" id="f-s_learn">{frag["s_learn"]}</span></summary><div class="body" id="f-learn">{frag["learn"]}</div></details>
 <details class="sec" id="d-chart"><summary>Kontostand-Verlauf (Detail)<span class="sm" id="f-s_chart">{frag["s_chart"]}</span></summary><div class="body" id="f-chart">{frag["chart"]}</div></details>
 <details class="sec" id="d-shadow"><summary>Shadow-Trades<span class="sm" id="f-s_shadow">{frag["s_shadow"]}</span></summary><div class="body" id="f-shadow">{frag["shadow"]}</div></details>
 <details class="sec" id="d-control"><summary>Kontroll-Bot<span class="sm" id="f-s_control">{frag["s_control"]}</span></summary><div class="body" id="f-control">{frag["control"]}</div></details>

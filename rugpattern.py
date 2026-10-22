@@ -24,6 +24,10 @@ R7_MIN_PCT = 10.0          # first 1m candle open->high >= +1000%
 R7_MIN_SHARE = 0.50        # ... and >= 50% of the rise from launch open to the ATH so far
 NP_R7_MIN_PCT = 1.50       # newpairs: first 1m candle open->high >= +150%  (see CHANGELOG 2026-10-21 for calibration)
 LAUNCH_MATCH = 0.02        # first 1m candle open must equal the first 1h candle open (= launch price) within 2%
+try:   # 2026-10-22 SELF-LEARN (USER ORDER): learner_overrides.json may adjust allowlisted thresholds above (bounded, gated, kill switch)
+    import sys as _sys; _sys.path.insert(0, DESK if "DESK" in globals() else os.path.expanduser("~/.desk"))
+    import learner as _learner; _learner.apply("rugpattern", globals())
+except Exception: pass
 # ---- rule 8 ----
 W8 = 120; W8_MAX_AGE_S = 3600; W8_LAST_MAX_S = 300   # window = last 120 1s candles within 1 h; last candle <= 5 min old
 MW_ALT, MW_CVB, MW_BAND, MW_ER = 0.65, 0.70, 0.03, 0.15

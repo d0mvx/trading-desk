@@ -71,6 +71,9 @@ J_MIN_BS_M15 = 1.2        # buys/sells last 15 min
 J_MIN_BUYERS_PER_BUY = 0.25   # unique buyers / buys last hour (anti-bot)
 J_PC_H1 = (10.0, 300.0)   # price change last hour, % (inclusive)
 J_PC_H1_WATCH_MIN = 0.0   # watchlisted coin re-checked during its dip: momentum already proven -> h1 only needs to be >= 0%
+try:   # 2026-10-22 SELF-LEARN (USER ORDER): learner_overrides.json may adjust allowlisted thresholds above (bounded, gated, kill switch)
+    import learner as _learner; _learner.apply("meme", globals())
+except Exception: pass
 # ---- DIP entry (2026-10-20 14:5x, user-approved "buy the dip, not the top") ----
 DIP_MIN = 0.12            # enter only if price is >= 12% below its 60-min high ...
 DIP_MAX = 0.40            # ... but not > 40% below (trend broken; would sit 10% above a -30% stop's worth of further damage)
@@ -725,6 +728,10 @@ def pipeline(dry=False):
         try: scan.record_judge(sc.get("run_id"), (decisions if cands else [{"decision": "NONE", "reason": reason}]) + [{"decision": "META", "watchlist": len(wl), "watch_added": wl_added, "cooldown": len(cool), "shadow": len(sh)}])
         except Exception as e: log(f"[JUDGE] could not persist decisions: {e}")
     sh_res = None
+    def _feat(c):   # 2026-10-22 SELF-LEARN: entry features of shadow trades (recording only)
+        try:
+            import learner as _learner; return _learner.features(c, now().isoformat(), c.get("base_token"))
+        except Exception: return None
     def _shadow(extra=None):
         allsh = sh + (extra or [])
         if dry: print("[DRY] shadow candidates: " + "; ".join(f"{k} {c['name']} ({n[:50]})" for k, c, n in allsh)); return
@@ -735,7 +742,7 @@ def pipeline(dry=False):
             ent = [{"cat": k, "note": n, "pool": c["pool"], "token": c["base_token"], "name": c["name"], "venue": c["venue"],
                     "price": c.get("price_usd"), "sol": c.get("sol_usd"), "liq": c.get("liquidity_usd"), "mcap": c.get("mcap_usd"),
                     "ticket": round(min(FIXED_TICKET_USD, LIQ_CAP * (c.get("liquidity_usd") or 0)), 2), "exit": MAIN_EXIT, "sleeve": "main",
-                    "url": c.get("url")} for k, c, n in allsh]
+                    "url": c.get("url"), "feat": _feat(c)} for k, c, n in allsh]
             shadow.open_entries(ent)
         except Exception as e: log(f"[SHADOW] open failed: {type(e).__name__}: {str(e)[:120]}")
     if not top:
@@ -768,6 +775,9 @@ def pipeline(dry=False):
     o = {"lead": lead_id(top["base_token"]), "pool": top["pool"], "token": top["base_token"], "name": top["name"], "venue": top["venue"], "url": top["url"],
          "entry_time": now().isoformat(), **b, "tp_done": False, "tp_hits": [], "stop_loss": STOP_LOSS[top["venue"]], "exit": MAIN_EXIT,
          "dip": top.get("_dip"), "src": top.get("src"), "wallet": top.get("wallet"), "last_check": now().isoformat(), "simulated": True}
+    try:   # 2026-10-22 SELF-LEARN: entry features for the learner journal (recording only, no decision uses this)
+        import learner as _learner; o["feat"] = _learner.features(top, o["entry_time"], top.get("base_token"))
+    except Exception as e: log(f"[LEARN] entry features failed: {type(e).__name__}")
     try: blk = book_add(o, MAX_OPEN, TICKET_PCT)   # locked re-check vs the book as it is now (halt, caps, 1 per coin)
     except TimeoutError: blk = "positions lock busy"
     if blk:

@@ -61,7 +61,7 @@ def open_entries(ents):
                  "pool": e["pool"], "token": e["token"], "name": e["name"], "venue": e["venue"], "url": e.get("url"),
                  "entry_time": meme.now().isoformat(), **b, "tp_done": False, "tp_hits": [], "stop_loss": meme.STOP_LOSS.get(e["venue"], 0.20) if e.get("sleeve") != "newpairs" else 0.30,
                  "exit": e.get("exit") or meme.MAIN_EXIT, "realized": 0.0, "cost_initial": ticket, "shadow": True, "price_src": a.get("_src", "candidate")}
-            for k in ("tier", "creator", "narrative_score"):
+            for k in ("tier", "creator", "narrative_score", "feat"):   # feat: 2026-10-22 SELF-LEARN entry features
                 if e.get(k) is not None: o[k] = e[k]
             d["open"].append(o); rec[key] = t; percat[e["cat"]] = percat.get(e["cat"], 0) + 1; n += 1
             tlog({"type": "SHADOW_BUY", **o})

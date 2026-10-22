@@ -1078,6 +1078,35 @@ frag["s_control"] = (f'{sum(r["open"] for r in _ctrl)} offen · {sum(r["closed"]
 frag["s_rejtrack"] = (f'{len(_rc)} Coins' if "_rc" in globals() else "—")
 frag["s_review"] = (dt.datetime.fromtimestamp(os.path.getmtime(f"{DESK}/reviews/weekly_latest.html"), BER).strftime("%d.%m. %H:%M") + " Berlin") if os.path.exists(f"{DESK}/reviews/weekly_latest.html") else "—"
 
+# ---------- 2026-10-22 SELF-LEARN (USER ORDER 17:58): "Lernt dazu" panel = last 5 learner changes + trades analysed ----------
+def _learn_html():
+    def _j(p):
+        try: return json.load(open(p))
+        except Exception: return None
+    ov = _j(f"{DESK}/learner_overrides.json") or {}; rp = _j(f"{DESK}/learner/report.json") or {}
+    try:
+        import learner as _lm; _on = _lm.enabled()
+    except Exception: _on = None
+    ch = [c for c in ov.get("changes", []) if c.get("kind") in ("tighten", "loosen", "revert")][-5:][::-1]
+    n_an = rp.get("trades_main_with_features"); n_sh = rp.get("shadow_trades")
+    try: _at = dt.datetime.fromisoformat(rp["at"]).astimezone(BER).strftime("%d.%m. %H:%M") + " Berlin"
+    except Exception: _at = "noch nie"
+    _kind = {"tighten": "verschärft", "loosen": "gelockert", "revert": "zurückgenommen"}
+    rows = ""
+    for c in ch:
+        try: t = dt.datetime.fromisoformat(c["at"]).astimezone(BER).strftime("%d.%m. %H:%M")
+        except Exception: t = "?"
+        cls = "cr-neg" if c.get("kind") == "revert" else "cr-pos" if c.get("kind") == "loosen" else "cr-zero"
+        rows += (f'<div class="cr {cls}"><div class="cr1"><b class="tn">{esc(str(c.get("label") or c.get("param")))}</b> '
+                 f'<span class="tag2">{_kind.get(c.get("kind"), esc(str(c.get("kind"))))}</span> <b class="crp">{esc(str(c.get("old")))} → {esc(str(c.get("new")))}</b></div>'
+                 f'<div class="cr2">{t} Berlin · {esc(str(c.get("reason_de") or ""))}</div></div>')
+    head = (f'<div class="sech"><h2>Lernt dazu <span class="badge-n">{len(ov.get("params", {}))}</span></h2>'
+            f'<div class="secs">{"aktiv" if _on else "AUS (Kill-Switch)" if _on is False else "—"} · {n_an if n_an is not None else "—"} echte Trades + {n_sh if n_sh is not None else "—"} Shadow-Trades analysiert · letzter Lauf {_at} · '
+            f'{len(rp.get("proposals") or [])} Änderung(en) im letzten Lauf</div></div>')
+    return head + (rows or '<div class="none">Noch keine Regel geändert – das Gate (≥15 Trades, klar negativ, Holdout auf den neuesten 30 %) hat bisher nichts freigegeben.</div>'), (f'{len(ov.get("params", {}))} aktiv · {n_an if n_an is not None else "—"} Trades')
+try: frag["learn"], frag["s_learn"] = _learn_html()
+except Exception as e: frag["learn"], frag["s_learn"] = f'<div class="none">Lernt dazu: {esc(str(e))}</div>', "—"
+
 # ---------- 2026-10-21 SAVIP redesign (dash_savip.py): desk floor / balance / holdings / analysis / activity, black theme ----------
 SV = None
 try:
@@ -1156,6 +1185,7 @@ page = f"""<!doctype html><html lang="de"><head><meta charset="utf-8">
 <div class="livebar"><span id="live" class="live"><i></i><span id="live-t">gerade aktualisiert</span></span> · gebaut <span id="f-gen">{gen}</span> · Zahlen alle 15 s, Seite alle 60 s neu</div>
 <section class="card2" id="f-open">{frag["open"]}</section>
 <section class="card2" id="f-closed">{frag["closed"]}</section>
+<details class="sec" id="d-learn"><summary>Lernt dazu (Self-Learner)<span class="sm" id="f-s_learn">{frag["s_learn"]}</span></summary><div class="body" id="f-learn">{frag["learn"]}</div></details>
 <div class="more2"><h3>MEHR (ZUM AUFKLAPPEN)</h3>
 <details class="sec" id="d-chart"><summary>Kontostand-Verlauf (Detail)<span class="sm" id="f-s_chart">{frag["s_chart"]}</span></summary><div class="body" id="f-chart">{frag["chart"]}</div></details>
 <details class="sec" id="d-shadow"><summary>Shadow-Trades<span class="sm" id="f-s_shadow">{frag["s_shadow"]}</span></summary><div class="body" id="f-shadow">{frag["shadow"]}</div></details>

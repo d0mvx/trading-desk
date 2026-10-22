@@ -26,6 +26,9 @@ RULES = {
     "stale": "reject if txns (m15+h1) and mcap unchanged for 3 consecutive scans (current = previous 2)",
     "stale_scans": 3,
 }
+try:   # 2026-10-22 SELF-LEARN (USER ORDER): learner_overrides.json may adjust allowlisted thresholds above (bounded, gated, kill switch)
+    import learner as _learner; _learner.apply("scan", globals())
+except Exception: pass
 COOLDOWN_FILE = os.path.join(os.path.expanduser("~/.desk"), "meme_cooldown.json")
 WATCH_FILE = os.path.join(os.path.expanduser("~/.desk"), "meme_watchlist.json")
 COOLDOWN_H = 24
