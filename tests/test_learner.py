@@ -80,6 +80,7 @@ class Gate(unittest.TestCase):
 class Apply(unittest.TestCase):
     def setUp(self):
         self.d = tempfile.mkdtemp(); self.p = os.path.join(self.d, "ov.json")
+        self._lp = mock.patch.object(L, "LOG", os.path.join(self.d, "learner.log")); self._lp.start(); self.addCleanup(self._lp.stop)
     def g(self): return {"RULES": {"pumpswap": {"liq_min": 12_000, "mcap_min": 40_000}, "min_buys_h1": 10}, "J_PC_H1": (10.0, 300.0), "MAX_OPEN": 6}
     def write(self, params): json.dump({"params": params}, open(self.p, "w"))
     def test_apply_valid_ignores_invalid_and_forbidden(self):
@@ -152,6 +153,18 @@ class Cycle(unittest.TestCase):
             r = L.run(dry=True, now=T0 + dt.timedelta(hours=200))
         self.assertEqual(len(r["proposals"]), L.MAX_CHANGES_PER_RUN)
         self.assertTrue(any("max 2 changes per run" in v[0] for v in r["rejected"].values()))
+
+class Tick(unittest.TestCase):
+    def test_tick_runs_under_the_cron_flock(self):
+        """gh/crontab.gh wraps the tick in `flock -n .learner.lock`; the inner run lock must be a DIFFERENT file."""
+        import subprocess
+        d = tempfile.mkdtemp(); outer = os.path.join(d, ".learner.lock")
+        self.assertNotEqual(os.path.basename(L.LOCK), ".learner.lock")
+        with mock.patch.object(L, "LOCK", os.path.join(d, os.path.basename(L.LOCK))), mock.patch.object(L, "run", lambda: "ran"), \
+             mock.patch.object(L, "load_overrides", lambda: {}), mock.patch.object(L, "n_closed_sells", lambda: 0), mock.patch.dict(os.environ, {"LEARNER_ENABLED": "1"}):
+            p = subprocess.Popen(["flock", outer, "sleep", "3"]); import time as _t; _t.sleep(0.3)
+            try: self.assertEqual(L.tick(), "ran")
+            finally: p.kill(); p.wait()
 
 class Bases(unittest.TestCase):
     def test_code_values_captured(self):

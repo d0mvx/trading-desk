@@ -26,7 +26,7 @@ from zoneinfo import ZoneInfo
 LEARNER_ENABLED = True
 DESK = os.path.expanduser("~/.desk"); BER = ZoneInfo("Europe/Berlin"); UTC = dt.timezone.utc
 OVR = f"{DESK}/learner_overrides.json"; JOURNAL = f"{DESK}/learner/journal.json"; REPORT = f"{DESK}/learner/report.json"
-LOG = f"{DESK}/logs/learner.log"; CHANGES = f"{DESK}/logs/learner_changes.jsonl"; LOCK = f"{DESK}/.learner.lock"
+LOG = f"{DESK}/logs/learner.log"; CHANGES = f"{DESK}/logs/learner_changes.jsonl"; LOCK = f"{DESK}/.learner_run.lock"   # NOT .learner.lock: the cron line holds that one via flock(1)
 MIN_POCKET, MIN_LOOSEN, HOLDOUT_FRAC, HOLDOUT_MIN_N = 15, 20, 0.30, 5
 EXP_MIN = 0.05                     # "clearly": mean PnL per trade <= -5 % (tighten) / >= +5 % (loosen) AND 1 SE away from 0
 MAX_STEP = 0.25; STEPS = (0.05, 0.10, 0.15, 0.20, 0.25)
