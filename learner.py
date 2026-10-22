@@ -62,6 +62,9 @@ PARAMS = {
     "meme.J_PC_H1.1":                       _P("meme", "J_PC_H1.1", "max", 100.0, 300.0, "pc_h1", "judge: price h1", None, 5, "Kursanstieg 1h – Obergrenze (%)"),
     "rugpattern.R7_MIN_PCT":                _P("rugpattern", "R7_MIN_PCT", "ge", 3.0, 10.0, "f1_pct", "judge: rule 7 first candle", None, 0.1, "Regel 7: erste Kerze ab +x (1 = +100 %)"),
     "rugpattern.R7_MIN_SHARE":              _P("rugpattern", "R7_MIN_SHARE", "ge", 0.30, 0.80, "r7_share", "judge: rule 7 first candle", None, 0.01, "Regel 7: Anteil der ersten Kerze am Anstieg"),
+    # 2026-10-22 USER ORDER 21:44 (anti-chase / dump candle): ceil = shipped value -> the learner can only tighten these
+    "rugpattern.R9_MAX_RUN15":              _P("rugpattern", "R9_MAX_RUN15", "max", 0.60, 1.0, "run15", "judge: rule 9 chase", None, 0.05, "Regel 9: max. Anstieg 15 min (1 = +100 %)"),
+    "rugpattern.R10_MAX_RED1M":             _P("rugpattern", "R10_MAX_RED1M", "max", 0.12, 0.20, "red10", "judge: rule 10 dump candle", None, 0.01, "Regel 10: max. Einbruch einer 1m-Kerze (10 min)"),
 }
 R7_PARTNER = {"rugpattern.R7_MIN_PCT": ("r7_share", "rugpattern.R7_MIN_SHARE"), "rugpattern.R7_MIN_SHARE": ("f1_pct", "rugpattern.R7_MIN_PCT")}
 FORBIDDEN_PREFIXES = ("meme.FIXED_TICKET", "meme.TICKET_PCT", "meme.MIN_TICKET", "meme.LIQ_CAP", "meme.MAX_OPEN", "meme.TOTAL_MAX_OPEN",
@@ -177,6 +180,8 @@ def features(c, entry_iso=None, mint=None):
     if m:
         rp = (_rugcache().get(m) or {}).get("fc") or {}
         f["f1_pct"], f["r7_share"] = _num(rp.get("f1_pct")), _num(rp.get("share"))
+        r9 = (_rugcache().get(m) or {}).get("r9") or {}
+        f["run15"], f["red10"] = _num(r9.get("run15")), _num(r9.get("red10"))
     if entry_iso:
         t = dt.datetime.fromisoformat(entry_iso).astimezone(BER); f["hour"] = t.hour; f["dial"] = _dial_at(t)
     return f
@@ -407,7 +412,7 @@ def check_reverts(ov, trades, now_ts):
     return out
 
 def bins_report(trades, nb=5):
-    keys = ("liq", "mcap", "vol24", "vol_liq", "age_h", "buys_h1", "buyers_h1", "buyers_per_buy", "bs_m15", "pc_h1", "pc_m5", "f1_pct", "r7_share", "dial", "hour")
+    keys = ("liq", "mcap", "vol24", "vol_liq", "age_h", "buys_h1", "buyers_h1", "buyers_per_buy", "bs_m15", "pc_h1", "pc_m5", "f1_pct", "r7_share", "run15", "red10", "dial", "hour")
     rep = {}
     for k in keys:
         pts = sorted([(t["feat"][k], _ts(t["entry_time"]) or 0, t["pnl_pct"]) for t in trades if (t.get("feat") or {}).get(k) is not None and t.get("pnl_pct") is not None])
@@ -507,7 +512,8 @@ def run(dry=False, force=False, now=None):
 
 def _fmt(spec, v):
     if spec["feat"] in ("liq", "mcap", "vol24"): return f"${v/1e6:.2f}M" if v >= 1e6 else f"${v/1e3:.0f}k"
-    if spec["feat"] in ("f1_pct",): return f"+{v*100:.0f}%"
+    if spec["feat"] in ("f1_pct", "run15"): return f"+{v*100:.0f}%"
+    if spec["feat"] in ("red10",): return f"-{v*100:.0f}%"
     if spec["feat"] in ("r7_share", "buyers_per_buy"): return f"{v:.2f}"
     return f"{v:g}"
 

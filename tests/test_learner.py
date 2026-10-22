@@ -16,7 +16,8 @@ CUR = {n: v for n, v in {"scan.RULES.pumpswap.liq_min": 12_000, "scan.RULES.pump
        "scan.RULES.pumpswap.vol24_min": 40_000, "scan.RULES.pumpswap.max_vol24_to_liq": 40, "scan.RULES.pumpswap.age_max_h": 72,
        "scan.RULES.pumpswap.age_min_h": 0.25, "scan.RULES.min_buys_h1": 10, "scan.RULES.min_buys_m15": 2, "meme.J_MIN_BUYERS_H1": 50,
        "meme.J_MIN_BUYERS_PER_BUY": 0.25, "meme.J_MIN_BS_M15": 1.2, "meme.J_PC_H1.0": 10.0, "meme.J_PC_H1.1": 300.0,
-       "rugpattern.R7_MIN_PCT": 10.0, "rugpattern.R7_MIN_SHARE": 0.5}.items()}
+       "rugpattern.R7_MIN_PCT": 10.0, "rugpattern.R7_MIN_SHARE": 0.5,
+       "rugpattern.R9_MAX_RUN15": 1.0, "rugpattern.R10_MAX_RED1M": 0.20}.items()}
 
 def bad_pocket(n_bad=20, recent=True, n=100):
     """n trades over time; n_bad with liq 12.0-14.0k and -20 %, spread evenly in time (recent=False: all in the oldest 50 %)."""

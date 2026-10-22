@@ -12,7 +12,13 @@ rule 8 · bot-wash pattern: last W8 (120) 1-second candles (pump.fun 1s candles)
                  AND lag-1 return autocorrelation <= -0.15 AND efficiency <= 0.10   (KIMCHI/The Yellow Bull pattern)
 Data: keyless pump.fun swap-api (not the GeckoTerminal budget), cached in scan/rugpattern_cache.json
 (launch candle permanent, 1m 60 s, 1s 20 s), <= MAX_CALLS_PER_RUN network calls per process run.
-Missing data: rule 7 -> newpairs SKIP ('no first-candle data'), main sleeve ALLOW + log; rule 8 -> ALLOW + log (both)."""
+rule 9 · anti-chase (USER ORDER Dominic 2026-10-22 21:44, tightening only): from the same pump.fun 1m candles, price now vs
+    close 15 min ago >= +R9_MAX_RUN15 -> skip (vertical run-up = buying the top of the hype).  Main sleeve also:
+    young pool (< R9_YOUNG_N60 active 1m candles in the last 60 min) AND price vs 30 min ago >= +R9_YOUNG_MAX_RUN30 -> skip.
+rule 10 · dump candle: any 1m candle in the last 10 min with open->close <= -R10_MAX_RED1M -> skip (rug/dev-dump visible on chart).
+    Calibrated 2026-10-22 on epoch-2 trades (67 real main + 203 shadow main + 264 shadow control, GT 1m candles, in-sample!),
+    see CHANGELOG_research.md 2026-10-22 "rule 9/10".
+Missing data: rule 7 -> newpairs SKIP ('no first-candle data'), main sleeve ALLOW + log; rule 8/9/10 -> ALLOW + log (both)."""
 import os, json, time, fcntl, statistics as st, requests
 
 DESK = os.path.expanduser("~/.desk")
@@ -23,6 +29,14 @@ UA = {"User-Agent": "Mozilla/5.0 (desk-meme/1.0)", "Accept": "application/json"}
 R7_MIN_PCT = 10.0          # first 1m candle open->high >= +1000%
 R7_MIN_SHARE = 0.50        # ... and >= 50% of the rise from launch open to the ATH so far
 NP_R7_MIN_PCT = 1.50       # newpairs: first 1m candle open->high >= +150%  (see CHANGELOG 2026-10-21 for calibration)
+# ---- rule 9 / 10 (USER ORDER 2026-10-22 21:44) ----
+R9_MAX_RUN15 = 1.0         # price now vs close 15 min ago >= +100% -> skip (chase)
+R9_YOUNG_N60 = 25          # "young": fewer than 25 active 1m candles in the last 60 min ...
+R9_YOUNG_MAX_RUN30 = 1.0   # ... AND price vs 30 min ago >= +100% -> skip (main sleeve only)
+R10_MAX_RED1M = 0.20       # a 1m candle in the last R10_WIN_S with open->close <= -20% -> skip (dump candle)
+R10_WIN_S = 600
+NP_R9_MAX_RUN15 = 1.0      # newpairs (2-15 min old curve coins): same run-up / dump-candle limits, no "young" rule (all are young)
+NP_R10_MAX_RED1M = 0.20
 LAUNCH_MATCH = 0.02        # first 1m candle open must equal the first 1h candle open (= launch price) within 2%
 try:   # 2026-10-22 SELF-LEARN (USER ORDER): learner_overrides.json may adjust allowlisted thresholds above (bounded, gated, kill switch)
     import sys as _sys; _sys.path.insert(0, DESK if "DESK" in globals() else os.path.expanduser("~/.desk"))
@@ -36,6 +50,7 @@ ST_DENS, ST_NRED, ST_RED_MIN, ST_CVRED, ST_AC1, ST_ER = 0.95, 15, 0.015, 0.30, -
 TTL_1M, TTL_1S, KEEP_S = 60, 20, 7 * 86400
 MAX_CALLS_PER_RUN = 20; TIMEOUT = 6
 _calls = [0]
+_M1 = {}   # per-process memo mint -> (fetched_at, 1m candles): rule 9/10 reuse rule 7's fetch (no extra call)
 
 class NoData(RuntimeError): pass
 class Budget(NoData): pass   # per-run call budget used up -> caller must NOT treat as "allowed"
@@ -93,6 +108,7 @@ def rule7(mint, newpairs=False, fetch=None, cache=None, upd=None):
         if not launch_open:
             launch_open = candles(mint, "1h", fetch=fetch)[0][1]
         m1 = candles(mint, "1m", fetch=fetch)
+        if fetch is None: _M1[mint] = (time.time(), m1)
         met = first_candle_metrics(m1, launch_open)
         if met is None:
             if upd is not None: upd[mint] = {"launch_open": launch_open, "seen": now}
@@ -108,6 +124,49 @@ def rule7(mint, newpairs=False, fetch=None, cache=None, upd=None):
         bad = p >= R7_MIN_PCT and sh >= R7_MIN_SHARE
         txt = f"rule 7 · first candle +{p*100:.0f}% = {sh:.0%} of rise to ATH (rug pattern; max +{R7_MIN_PCT*100:.0f}% & {R7_MIN_SHARE:.0%})"
     return (txt if bad else None), met
+
+# ---------------- rule 9 / 10 ----------------
+def chase_metrics(m1, now):
+    """m1: 1m candles (ascending, only candles that started before `now`). run15/run30 = last close vs the close
+    of the last candle that started <= 15/30 min ago (launch open if none); n60 = active minutes in the last hour;
+    red10 = biggest open->close drop of one 1m candle in the last R10_WIN_S seconds."""
+    m1 = [x for x in m1 if x[0] <= now]
+    if not m1: return None
+    px = m1[-1][4]
+    def close_at(sec):
+        c = [x for x in m1 if x[0] <= now - sec]
+        return c[-1][4] if c else m1[0][1]
+    def run(sec):
+        b = close_at(sec); return px / b - 1 if b > 0 else 0.0
+    w = [x for x in m1 if x[0] >= now - R10_WIN_S]
+    return {"run15": run(900), "run30": run(1800), "n60": sum(1 for x in m1 if x[0] >= now - 3600),
+            "red10": max([(x[1] - x[4]) / x[1] for x in w if x[1] > 0] or [0.0]), "px": px}
+
+def chase_verdict(m, newpairs=False):
+    if not m: return None
+    lim = NP_R9_MAX_RUN15 if newpairs else R9_MAX_RUN15
+    if m["run15"] >= lim:
+        return f"rule 9 · chase: +{m['run15']*100:.0f}% in 15 min (vertical run-up; max +{lim*100:.0f}%)"
+    if not newpairs and m["n60"] < R9_YOUNG_N60 and m["run30"] >= R9_YOUNG_MAX_RUN30:
+        return f"rule 9 · chase: young pool ({m['n60']} active min/1h < {R9_YOUNG_N60}) +{m['run30']*100:.0f}% in 30 min (max +{R9_YOUNG_MAX_RUN30*100:.0f}%)"
+    red = NP_R10_MAX_RED1M if newpairs else R10_MAX_RED1M
+    if m["red10"] >= red:
+        return f"rule 10 · dump candle: -{m['red10']*100:.0f}% in one 1m candle within {R10_WIN_S//60} min (max -{red*100:.0f}%)"
+    return None
+
+def rule9(mint, newpairs=False, fetch=None, cache=None, upd=None, now=None):
+    """rule 9 (chase) + rule 10 (dump candle). Returns (fail_text or None, metrics). Raises NoData/Budget."""
+    now = now or time.time(); e = (cache or {}).get(mint, {})
+    mm = _M1.get(mint) if fetch is None else None
+    if mm and time.time() - mm[0] < TTL_1M: met = chase_metrics(mm[1], now)
+    elif e.get("r9") and now - e.get("r9_at", 0) < TTL_1M: met = e["r9"]
+    else:
+        m1 = candles(mint, "1m", fetch=fetch)
+        if fetch is None: _M1[mint] = (time.time(), m1)
+        met = chase_metrics(m1, now)
+    if met is None: raise NoData("no 1m candles before now")
+    if upd is not None: upd.setdefault(mint, {}).update({"r9": met, "r9_at": now, "seen": now})
+    return chase_verdict(met, newpairs), met
 
 # ---------------- rule 8 ----------------
 def wash_features(w):
@@ -148,7 +207,7 @@ def rule8(mint, fetch=None, cache=None, upd=None, now=None):
 
 # ---------------- entry point ----------------
 def check(mint, newpairs=False, fetch=None, save=True):
-    """Returns (fails, notes). fails = skip reasons (rule 7 / rule 8 texts, or 'no first-candle data' for newpairs);
+    """Returns (fails, notes). fails = skip reasons (rule 7 / 9 / 10 / 8 texts, or 'no first-candle data' for newpairs);
     notes = data-unavailable messages that were ALLOWED (to be logged by the caller)."""
     cache = _load() if save else {}; upd = {}; fails, notes = [], []
     try:
@@ -159,6 +218,13 @@ def check(mint, newpairs=False, fetch=None, save=True):
     except NoData as e:
         if newpairs: fails.append(f"rule 7 · no first-candle data ({e})")
         else: notes.append(f"rule 7 n/a ({e}) -> allowed")
+    try:
+        t9, _ = rule9(mint, newpairs=newpairs, fetch=fetch, cache=cache, upd=upd)
+        if t9: fails.append(t9)
+    except Budget as e:
+        if not any(x.startswith("not judged") for x in fails): fails.append(f"not judged: rule 9/10 not checked ({e}) -> no buy this run")
+    except NoData as e:
+        notes.append(f"rule 9/10 n/a ({e}) -> allowed")
     try:
         t8, _ = rule8(mint, fetch=fetch, cache=cache, upd=upd)
         if t8: fails.append(t8)
