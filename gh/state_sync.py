@@ -62,6 +62,8 @@ def git(wt, *a, check=True, capture=False):
     return subprocess.run(["git", "-C", wt, *a], check=check, text=True, capture_output=capture)
 
 def commit(wt, msg, push=False, retries=5):
+    if not git(wt, "config", "user.email", check=False, capture=True).stdout.strip():   # fresh clone without identity
+        git(wt, "config", "user.name", "desk-bot"); git(wt, "config", "user.email", "desk-bot@users.noreply.github.com")
     changed = [l[3:] for l in git(wt, "status", "--porcelain", capture=True).stdout.splitlines()]
     if not changed: log("commit: nothing changed"); return 0
     # secret gate: scan everything that changed; offending files are dropped from this commit (and removed from the worktree)
