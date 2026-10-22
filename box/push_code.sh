@@ -22,6 +22,8 @@ echo "$(ts) push_code: changed files:"; echo "$CHANGED" | sed 's/^/  /'
 ( cd "$DESK" && "$PY" -m pytest tests --ignore=tests/backtest -q -p no:cacheprovider ) \
   || { echo "$(ts) push_code: TESTS FAILED -> nothing pushed"; exit 4; }
 git -C "$R" add -A
+# *.md redaction can make an "update" a no-op (e.g. docs/DESK_README.md) -> nothing left to commit is success, not an error
+git -C "$R" diff --cached --quiet && { echo "$(ts) push_code: nothing to push after redaction"; exit 0; }
 git -C "$R" commit -q -m "$MSG"
 if [ "$DRY" = 1 ]; then echo "$(ts) push_code: dry-run, commit prepared in $R, not pushed"; git -C "$R" show --stat HEAD | tail -n +5; exit 0; fi
 for i in 1 2 3; do
