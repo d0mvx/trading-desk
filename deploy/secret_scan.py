@@ -21,7 +21,8 @@ RULES = [
     ("env-assignment", re.compile(r"(?m)^\s*(export\s+)?(ALPACA_KEY|ALPACA_SECRET|HERENOW_API_KEY|FRED_API_KEY|JEV_API_KEY|TYPESAFE_API_KEY)\s*=\s*\S{8,}")),
     ("solana-secret-b58", re.compile(r"(?<![1-9A-HJ-NP-Za-km-z])[1-9A-HJ-NP-Za-km-z]{86,90}(?![1-9A-HJ-NP-Za-km-z])")),
     ("keypair-int-array", re.compile(r"\[\s*(\d{1,3}\s*,\s*){63}\d{1,3}\s*\]")),
-    ("seed-phrase-hint", re.compile(r"(?i)\b(seed phrase|mnemonic|private[_ ]key)\b\s*[:=]\s*\S")),
+    # key material after the hint (>= 32 b58/hex/b64 chars or >= 12 lowercase words); a coin named "Private key = 4" is not
+    ("seed-phrase-hint", re.compile(r"(?i)\b(seed phrase|mnemonic|private[_ ]key)\b\s*[:=]\s*[\"']?([A-Za-z0-9+/]{32,}|([a-z]{3,8}\s+){11,}[a-z]{3,8})")),
 ]
 # private widget feed name: only its sha256 is stored here (the name itself must not appear in the public repo)
 FEED_SHA = {"d0a67451d38e1ff52f9672b2da957059ee0f72eb97e279e01188c733b377d927"}
