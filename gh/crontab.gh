@@ -1,0 +1,20 @@
+# gh/crontab.gh - the box's #DESK cron lines, run 1:1 by gh/desk_loop.py on the GitHub runner (TZ=Europe/Berlin, like the box).
+# Generated from `crontab -l` on 2026-10-22 03:4x Berlin. NOT included: watchdog.sh (box-only local server/tunnel) and the
+# #WALLET_OOS backtest tracker (Backtest bot's job on the box). Keep this file in sync when the box crontab changes.
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+45 20-22 * * 1-5 $HOME/.desk/tz_gate.sh 15:45 America/New_York 12345 $HOME/.desk/run_strategy.sh >> $HOME/.desk/logs/cron.log 2>&1 #DESK
+45 20-22 * * 1-5 $HOME/.desk/tz_gate.sh 15:45 America/New_York 12345 $HOME/.desk/run_alp.sh stocks >> $HOME/.desk/logs/cron.log 2>&1 #DESK
+5 0-3 * * * $HOME/.desk/tz_gate.sh 20:05 America/New_York 1234567 $HOME/.desk/run_alp.sh crypto >> $HOME/.desk/logs/cron.log 2>&1 #DESK
+30 11-14 * * 1-5 $HOME/.desk/tz_gate.sh 07:30 America/New_York 12345 $HOME/.desk/run_alp.sh lists >> $HOME/.desk/logs/cron.log 2>&1 #DESK
+0,30 * * * * $HOME/.desk/run_alp.sh kill >> $HOME/.desk/logs/cron.log 2>&1 #DESK
+0 10-13 * * * $HOME/.desk/tz_gate.sh 06:00 America/New_York 1234567 $HOME/.desk/run_dial.sh >> $HOME/.desk/logs/cron.log 2>&1 #DESK
+* * * * * flock -n $HOME/.desk/.gate.lock $HOME/.desk/venv/bin/python $HOME/.desk/meme_gate.py >> $HOME/.desk/logs/cron.log 2>&1 #DESK
+* * * * * flock -n $HOME/.desk/.risk.lock timeout -k 2 58 $HOME/.desk/run_meme.sh risk >> $HOME/.desk/logs/cron.log 2>&1 #DESK
+* * * * * cd $HOME/.desk && flock -n $HOME/.desk/.build.lock $HOME/.desk/venv/bin/python build_dashboard.py >> $HOME/.desk/logs/dashboard.log 2>&1 #DESK
+*/2 * * * * sleep 25; cd $HOME/.desk && $HOME/.desk/venv/bin/python herenow_publish.py >> $HOME/.desk/logs/herenow.log 2>&1 #DESK
+* * * * * flock -n $HOME/.desk/.wallet.lock timeout 30 $HOME/.desk/venv/bin/python $HOME/.desk/scan/wallet_signal.py >> $HOME/.desk/logs/wallet_signal.log 2>&1 #DESK
+* * * * * flock -n $HOME/.desk/.newpairs.lock timeout 55 $HOME/.desk/venv/bin/python $HOME/.desk/newpairs.py run >> $HOME/.desk/logs/newpairs.log 2>&1 #DESK
+*/5 * * * * cd $HOME/.desk && flock -n $HOME/.desk/.rejtrack.lock timeout 120 $HOME/.desk/venv/bin/python reject_tracker.py >> $HOME/.desk/logs/reject_tracker.log 2>&1 #DESK
+0 20 * * 0 cd $HOME/.desk && $HOME/.desk/venv/bin/python weekly_review.py 7 >> $HOME/.desk/logs/weekly_review.log 2>&1 #DESK
+20 * * * * $HOME/.desk/dial_catchup.sh >> $HOME/.desk/logs/cron.log 2>&1 #DESK
