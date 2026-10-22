@@ -1,6 +1,6 @@
 # gh/crontab.gh - the box's #DESK cron lines, run 1:1 by gh/desk_loop.py on the GitHub runner (TZ=Europe/Berlin, like the box).
 # Generated from `crontab -l` on 2026-10-22 03:4x Berlin. NOT included: watchdog.sh (box-only local server/tunnel) and the
-# #WALLET_OOS backtest tracker (Backtest bot's job on the box). Keep this file in sync when the box crontab changes.
+# #WALLET_OOS backtest tracker (Backtest bot's job on the box; Backtest bot STOPPED 2026-10-22). Keep this file in sync when the box crontab changes.
 SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
 45 20-22 * * 1-5 $HOME/.desk/tz_gate.sh 15:45 America/New_York 12345 $HOME/.desk/run_strategy.sh >> $HOME/.desk/logs/cron.log 2>&1 #DESK
@@ -18,3 +18,6 @@ PATH=/usr/local/bin:/usr/bin:/bin
 */5 * * * * cd $HOME/.desk && flock -n $HOME/.desk/.rejtrack.lock timeout 120 $HOME/.desk/venv/bin/python reject_tracker.py >> $HOME/.desk/logs/reject_tracker.log 2>&1 #DESK
 0 20 * * 0 cd $HOME/.desk && $HOME/.desk/venv/bin/python weekly_review.py 7 >> $HOME/.desk/logs/weekly_review.log 2>&1 #DESK
 20 * * * * $HOME/.desk/dial_catchup.sh >> $HOME/.desk/logs/cron.log 2>&1 #DESK
+# SELF-LEARN (USER ORDER 2026-10-22 17:58): learner.py tick checks every minute, LEARNS only when due (30 min or >=10 new closed sells).
+# Kill switch: LEARNER_ENABLED=False in learner.py or env LEARNER_ENABLED=0.
+* * * * * cd $HOME/.desk && flock -n $HOME/.desk/.learner.lock timeout 120 $HOME/.desk/venv/bin/python learner.py tick >> $HOME/.desk/logs/learner.log 2>&1 #DESK

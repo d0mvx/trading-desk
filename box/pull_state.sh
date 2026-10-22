@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # pull_state.sh [--into DIR]
-# GitHub branch `state` -> ~/.desk, so Backtest/Scan/other bots and the backups see current data.
+# GitHub branch `state` -> ~/.desk, so other box bots and the backups see current data. After a pull into ~/.desk,
+# learner.py publish appends new SELF-LEARN changes to CHANGELOG_research.md + shared/KNOWLEDGE.md (box side, flock).
 # Only allowed while GitHub is the live desk (marker ~/.desk/.github_live from cutover.sh); otherwise the box's own cron
 # owns the state and a pull would overwrite live data. --into DIR copies into another dir instead (inspection, always allowed).
 # Suggested cron AFTER cutover (not installed):  */5 * * * * bash -lc '$HOME/.desk-sync/tools/box/pull_state.sh' >> $HOME/.desk/logs/gh_pull.log 2>&1
@@ -16,3 +17,4 @@ clone_branch state "$SYNC/state"
 mkdir -p "$INTO"
 "$PY" "$TOOLS/gh/state_sync.py" import "$SYNC/state" "$INTO" --index "$SYNC/state_index.$(echo "$INTO" | md5sum | cut -c1-8).json"
 echo "$(ts) pull_state: $(git -C "$SYNC/state" log -1 --format='%h %s') -> $INTO"
+if [ "$INTO" = "$DESK" ] && [ -f "$DESK/learner.py" ]; then ( cd "$DESK" && timeout 60 "$PY" learner.py publish ) || echo "$(ts) pull_state: learner publish failed (non-fatal)"; fi

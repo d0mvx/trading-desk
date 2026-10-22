@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # push_code.sh [-m "message"] [--dry-run]
-# Box -> GitHub main: CODE ONLY (deploy/code_manifest.txt), e.g. after Backtest approved a change in ~/.desk.
+# Box -> GitHub main: CODE ONLY (deploy/code_manifest.txt), e.g. after a direct user order changed ~/.desk.
+# (Backtest bot stopped 2026-10-22: rule changes come from the self-learner gate on the runner or from direct user orders.)
 # Gates: secret scan (patterns + the box's real secret values) must be clean, pytest (66 risk tests) must pass.
 # Never force-pushes. The running GitHub job picks the new code up at its next handover (<= 6 h) .
 set -euo pipefail
