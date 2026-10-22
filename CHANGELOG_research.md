@@ -175,3 +175,11 @@ Revert recipe (generic): `cp -p ~/.desk/<backup>/<file> ~/.desk/<file>` for each
 
 ## 2026-10-22 12:30 — NOTE (no code change): the I-18 evidence correction of 11:00 is WITHDRAWN
 - On-chain check: the "spoof" prices are real prices of the migration pool (pool balances after the tx match the API price within 5–7 %). The I-18 OOS evidence stands as originally logged; a clean re-test with a dust filter is running (tests/backtest/meme/clean_progress.md).
+
+## 2026-10-22 13:36 — OPS (no trading-rule change): desk moved to GitHub Actions (d0mvx/trading-desk)
+- **Live desk = GitHub Actions** (workflow `desk-live`, ~5 h 50 min per run, self-dispatch handover + 6-h schedule, concurrency `desk-live`). `gh/desk_loop.py` runs `gh/crontab.gh` = the former box #DESK lines 1:1 (Berlin time). Paper only, unchanged.
+- **Box:** the 15 trading/publish cron lines are commented `#GHCUT# ` (watchdog + #WALLET_OOS stay). The box holds only a synced **state copy**: `#GHSYNC` cron pulls branch `state` every 5 min (`pull_state.sh`) and pushes approved CODE to `main` every 10 min (`push_code.sh`, secret scan + pytest gated). Box bots must NOT write state files directly (overwritten every 5 min); trading code changes go through Backtest -> ~/.desk code -> push_code.
+- **State:** branch `state`, committed every 5 min and on job end; allowlist `deploy/state_manifest.txt`; every commit secret-scanned. Gate file `GH_LIVE` on `state` (no file = nothing runs on GitHub).
+- **Code changes for GitHub (backward-compatible, env first, local files as fallback):** alp_common.py, build_dashboard.py, meme.py, herenow_publish.py, run_dial.sh, run_strategy.sh (backup `backup_20261022_0339_github/`); run_meme.sh caps the pipeline dashboard build at 120 s after a hung build blocked the meme pipeline 12:00–13:10 (`backup_20261022_1310_buildtimeout/`); tests/test_meme_stops.py cadence test also accepts gh/crontab.gh (`backup_20261022_1337_test_cadence_gh/`).
+- **Known limits:** GeckoTerminal answers part of the runner's calls with 429 (shared GitHub IPs) -> main scan sees fewer pools (60–100 vs ~130) and no GT "extras"; DexScreener, pump.fun, Alpaca, here.now work. Handover gap ~1–2 min.
+- **Revert:** `~/.desk-sync/tools/box/rollback.sh` (removes GH_LIVE, cancels runs, pulls final state, restores the #GHCUT# lines).
