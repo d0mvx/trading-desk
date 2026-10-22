@@ -10,6 +10,7 @@ dur=$(awk -v a="$t0" -v b="$EPOCHREALTIME" 'BEGIN{printf "%.1f", b-a}')
 echo "$(date '+%Y-%m-%d %H:%M:%S %Z') run_meme $1 done rc=$rc ${dur}s" >> logs/meme_run.log
 [ $rc -ne 0 ] && echo "$(date '+%Y-%m-%d %H:%M:%S %Z') [RISK] meme.py $1 exit=$rc (see logs/meme_run.log)" >> logs/meme.log
 # dashboard: share the cron build lock (wait up to 20s, never run two builds at once)
+# 2026-10-22 13:1x: build capped at 120 s (a hung build held .gate.lock and stopped the meme pipeline 12:00-13:10)
 # (risk: skipped - the 1-min cron build covers it and the fast-exit loop must stay < 60 s)
-[ "$1" = "pipeline" ] && { flock -w 20 "$HOME/.desk/.build.lock" "$HOME/.desk/venv/bin/python" build_dashboard.py >> logs/dashboard.log 2>&1 || true; }
+[ "$1" = "pipeline" ] && { flock -w 20 "$HOME/.desk/.build.lock" timeout -k 5 120 "$HOME/.desk/venv/bin/python" build_dashboard.py >> logs/dashboard.log 2>&1 || true; }
 exit $rc
