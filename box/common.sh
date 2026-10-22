@@ -26,7 +26,12 @@ clone_branch() {  # clone_branch BRANCH DIR  -> fresh, clean checkout of origin/
 }
 DESK_LOCKS=(.gate.lock .risk.lock .meme.lock .pos.lock .riskstate.lock .shadow.lock .newpairs.lock .build.lock .herenow.lock .alp.lock .lists.lock .dial.lock .wallet.lock .rejtrack.lock)
 wait_desk_idle() {  # wait until no desk job holds a lock (max ~2 min each)
-  for l in "${DESK_LOCKS[@]}"; do [ -e "$DESK/$l" ] && flock -w 130 "$DESK/$l" true; done; sleep 2
+  local l
+  for l in "${DESK_LOCKS[@]}"; do
+    [ -e "$DESK/$l" ] || continue
+    flock -w 130 "$DESK/$l" true || { echo "$(ts) lock $l still held after 130 s (hung job?) -> abort" >&2; return 1; }
+  done
+  sleep 2; return 0
 }
 in_protected_window() {  # same windows as gh/desk_loop.py (no switch-over minutes before scheduled Alpaca orders)
   "$PY" - "$1" <<'PY'

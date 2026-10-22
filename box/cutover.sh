@@ -19,7 +19,7 @@ echo "$(ts) cutover: crontab backed up to $B/crontab.txt"
 crontab -l | awk '/#DESK[[:space:]]*$/ && $0 !~ /^[[:space:]]*#/ && $0 !~ /watchdog\.sh/ {print "#GHCUT# " $0; next} {print}' > "$B/crontab_after.txt"
 crontab "$B/crontab_after.txt"
 echo "$(ts) cutover: $(grep -c '^#GHCUT# ' "$B/crontab_after.txt") box cron line(s) disabled"
-wait_desk_idle
+wait_desk_idle || { crontab "$B/crontab.txt"; echo "$(ts) cutover: desk not idle -> box cron restored, nothing else changed"; exit 6; }
 clone_branch state "$SYNC/state"
 "$PY" "$TOOLS/gh/state_sync.py" export "$DESK" "$SYNC/state"
 echo "live since $(date -Iseconds) (box cutover)" > "$SYNC/state/GH_LIVE"
