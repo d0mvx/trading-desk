@@ -25,7 +25,11 @@ class Stops(unittest.TestCase):
         m = self.m
         self.assertLessEqual(m.RISK_STEP_S, 12); self.assertGreaterEqual(m.RISK_CHECKS * m.RISK_STEP_S, 60 - m.RISK_STEP_S)
         self.assertLessEqual(m.RISK_LAST_START_S + m.RISK_STEP_S, 62)
-        cron = os.popen("crontab -l").read()
+        cron = os.popen("crontab -l 2>/dev/null").read()
+        # 2026-10-22 GitHub cutover: the live schedule may be gh/crontab.gh (runner: repo checkout; box: tools checkout)
+        for f in (os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "gh", "crontab.gh"),
+                  os.path.expanduser("~/.desk-sync/tools/gh/crontab.gh")):
+            if os.path.exists(f): cron += "\n" + open(f).read()
         self.assertTrue(re.search(r"^\* \* \* \* \* .*run_meme\.sh risk", cron, re.M), "risk loop must run every minute")
     def test_stop_fires_in_the_same_check(self):
         m = self.m; self.book(pos("A"))
