@@ -8,7 +8,7 @@ DENY = ["*.env", "**/*.env", "*.env.*", "alpaca.env", "sec.env", "jev.env", "das
         "public_url.txt", "*.pem", "*.key", "**/id_*", "*keypair*.json", "*wallet*.key", "**/credentials", ".herenow*/**", ".herenow*",
         "dashboard/**", "logs/herenow.log", "venv/**", "bin/**", "backup_*/**", "archive/**", "research/**", "tests/backtest/**",
         "**/__pycache__/**", "*.pyc", "**/*.pyc", ".*.lock", "**/.*.lock", "*.tmp", "**/*.tmp", "**/.*.tmp", ".gt_calls"]
-ALLOW_DOTENV = {"jev.env.example", "sec.env.example"}
+ALLOW_DOTENV = {"jev.env.example", "sec.env.example", "dashboard/apple-touch-icon.png"}   # static icon herenow_publish needs
 
 def denied(rel):
     if rel in ALLOW_DOTENV: return False
