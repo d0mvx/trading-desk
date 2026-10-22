@@ -1,0 +1,79 @@
+{
+ "scanned_at": "2026-10-20T04:25:03+02:00",
+ "network": "solana",
+ "source": "geckoterminal",
+ "pump_fun_frontend_api": "not used (Cloudflare 403 keyless)",
+ "gt_calls": 1,
+ "pools_seen": 20,
+ "rejected_by_first_rule": {
+  "liquidity < $5.0k": 14,
+  "curve complete": 6
+ },
+ "rejected_by_reason": {
+  "liquidity < $5.0k": 14,
+  "24h vol < $20.0k": 3,
+  "mcap < $15.0k": 13,
+  "quote not SOL": 4,
+  "buys h1 < 10": 17,
+  "buys m15 < 2": 16,
+  "stale data": 16,
+  "vol/liq wash": 8,
+  "curve complete": 6,
+  "sells > buys m15": 2,
+  "sells > buys h1": 5
+ },
+ "rejected_total": 20,
+ "bonding_curve_liq_derived": 16,
+ "venue_stats": {
+  "bonding_curve": {
+   "evaluated": 20,
+   "passed": 0,
+   "rejected": 20,
+   "gt_liq_zero_or_null": 7,
+   "gt_zero_now_pass_liq": 6,
+   "fail_liq_derived": 10
+  }
+ },
+ "errors": [
+  "/networks/solana/dexes/pump-fun/pools p2: GT budget: would wait 53s past deadline",
+  "/networks/solana/dexes/pumpswap/pools p1: GT budget: would wait 53s past deadline",
+  "/networks/solana/dexes/pumpswap/pools p2: GT budget: would wait 53s past deadline",
+  "/networks/solana/new_pools p1: GT budget: would wait 53s past deadline",
+  "/networks/solana/new_pools p2: GT budget: would wait 53s past deadline",
+  "/networks/solana/new_pools p3: GT budget: would wait 53s past deadline",
+  "/networks/solana/new_pools p4: GT budget: would wait 53s past deadline"
+ ],
+ "rules": {
+  "bonding_curve": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 15000,
+   "mcap_max": 90000,
+   "vol24_min": 20000,
+   "liq_min": 5000,
+   "max_vol24_to_liq": 100
+  },
+  "pumpswap": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 40000,
+   "mcap_max": 8000000,
+   "vol24_min": 40000,
+   "liq_min": 12000,
+   "max_vol24_to_liq": 40
+  },
+  "max_out": 10,
+  "drop_if_sells_gt_buys_in": [
+   "m15",
+   "h1"
+  ],
+  "quote": "SOL only (custom-pair coins dropped)",
+  "min_buys_h1": 10,
+  "min_buys_m15": 2,
+  "curve_complete_sol": 80,
+  "stale": "reject if txns (m15+h1) and mcap unchanged for 3 consecutive scans (current = previous 2)",
+  "stale_scans": 3
+ },
+ "candidates": [],
+ "run_id": "20261020T042503"
+}

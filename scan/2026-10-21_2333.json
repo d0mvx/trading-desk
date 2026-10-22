@@ -1,0 +1,117 @@
+{
+ "scanned_at": "2026-10-21T23:33:02+02:00",
+ "network": "solana",
+ "source": "geckoterminal",
+ "pump_fun_frontend_api": "frontend-api-v3 feeds used as extra candidate source (sources.py)",
+ "gt_calls": 5,
+ "pools_seen": 100,
+ "rejected_by_first_rule": {
+  "liquidity < $5.0k": 17,
+  "curve complete": 3,
+  "liquidity < $12.0k": 33,
+  "mcap > $8.00M": 1,
+  "vol/liq wash": 4,
+  "buys h1 < 10": 2,
+  "age < 15m": 37
+ },
+ "rejected_by_reason": {
+  "liquidity < $5.0k": 51,
+  "mcap < $15.0k": 51,
+  "vol/liq wash": 51,
+  "stale data": 52,
+  "buys h1 < 10": 69,
+  "buys m15 < 2": 57,
+  "curve complete": 3,
+  "24h vol < $20.0k": 35,
+  "sells > buys m15": 14,
+  "sells > buys h1": 15,
+  "quote not SOL": 5,
+  "liquidity < $12.0k": 34,
+  "mcap > $8.00M": 2,
+  "mcap < $40.0k": 7,
+  "age < 15m": 37,
+  "24h vol < $40.0k": 3
+ },
+ "rejected_total": 97,
+ "bonding_curve_liq_derived": 49,
+ "venue_stats": {
+  "bonding_curve": {
+   "evaluated": 54,
+   "passed": 0,
+   "rejected": 54,
+   "gt_liq_zero_or_null": 4,
+   "gt_zero_now_pass_liq": 3,
+   "fail_liq_derived": 46
+  },
+  "pumpswap": {
+   "evaluated": 43,
+   "passed": 0,
+   "rejected": 43,
+   "gt_liq_zero_or_null": 0,
+   "gt_zero_now_pass_liq": 0,
+   "fail_liq_derived": 0
+  }
+ },
+ "errors": [
+  "/networks/solana/dexes/pump-fun/pools p1: HTTPSConnectionPool(host='api.geckoterminal.com', port=443): Read timed out. (read timeout=12)",
+  "extra gt multi: HTTPError 504 Server Error: Gateway Timeout for url: https://api.gecko"
+ ],
+ "rules": {
+  "bonding_curve": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 15000,
+   "mcap_max": 90000,
+   "vol24_min": 20000,
+   "liq_min": 5000,
+   "max_vol24_to_liq": 100
+  },
+  "pumpswap": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 40000,
+   "mcap_max": 8000000,
+   "vol24_min": 40000,
+   "liq_min": 12000,
+   "max_vol24_to_liq": 40
+  },
+  "max_out": 25,
+  "drop_if_sells_gt_buys_in": [
+   "m15",
+   "h1"
+  ],
+  "quote": "SOL only (custom-pair coins dropped)",
+  "min_buys_h1": 10,
+  "min_buys_m15": 2,
+  "curve_complete_sol": 80,
+  "stale": "reject if txns (m15+h1) and mcap unchanged for 3 consecutive scans (current = previous 2)",
+  "stale_scans": 3
+ },
+ "candidates": [],
+ "sources": {
+  "geckoterminal_pools": 100,
+  "wallet_signal_mints": 0,
+  "pf_live": 50,
+  "pf_active": 50,
+  "pf_active2": 50,
+  "pf_curve_top": 50,
+  "ds_profiles": 25,
+  "ds_boosts": 24,
+  "ds_boosts_top": 25,
+  "ds_search_pumpswap": 30,
+  "ds_search_pumpfun": 30,
+  "ds_token_calls": 2,
+  "extra_mints": 84,
+  "prefilter_dropped": 58,
+  "prefilter_kept": 26,
+  "extra_requested": 29,
+  "extra_returned": 0,
+  "extra_gt_calls": 0,
+  "extra_pools_added": 0,
+  "wallet_signal_matched": 0
+ },
+ "cooldown_active": 15,
+ "cooldown_rejected": 0,
+ "watchlist_size": 4,
+ "run_id": "20261021T233302"
+}

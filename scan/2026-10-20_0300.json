@@ -1,0 +1,130 @@
+{
+ "scanned_at": "2026-10-20T03:00:03+02:00",
+ "network": "solana",
+ "source": "geckoterminal",
+ "pump_fun_frontend_api": "not used (Cloudflare 403 keyless)",
+ "gt_calls": 8,
+ "pools_seen": 132,
+ "rejected_by_first_rule": {
+  "liquidity < $5.0k": 30,
+  "curve complete": 9,
+  "age > 72h": 1,
+  "liquidity < $12.0k": 34,
+  "buys h1 < 10": 1,
+  "vol/liq wash": 2,
+  "buys m15 < 2": 1,
+  "mcap > $8.00M": 1,
+  "age < 15m": 42
+ },
+ "rejected_by_reason": {
+  "liquidity < $5.0k": 71,
+  "24h vol < $20.0k": 45,
+  "mcap < $15.0k": 70,
+  "quote not SOL": 25,
+  "buys m15 < 2": 79,
+  "stale data": 72,
+  "buys h1 < 10": 94,
+  "vol/liq wash": 59,
+  "sells > buys h1": 23,
+  "curve complete": 9,
+  "sells > buys m15": 15,
+  "age > 72h": 1,
+  "liquidity < $12.0k": 35,
+  "mcap < $40.0k": 11,
+  "mcap > $8.00M": 2,
+  "age < 15m": 42,
+  "24h vol < $40.0k": 2
+ },
+ "rejected_total": 121,
+ "bonding_curve_liq_derived": 55,
+ "venue_stats": {
+  "bonding_curve": {
+   "evaluated": 80,
+   "passed": 0,
+   "rejected": 80,
+   "gt_liq_zero_or_null": 9,
+   "gt_zero_now_pass_liq": 8,
+   "fail_liq_derived": 46
+  },
+  "pumpswap": {
+   "evaluated": 42,
+   "passed": 1,
+   "rejected": 41,
+   "gt_liq_zero_or_null": 0,
+   "gt_zero_now_pass_liq": 0,
+   "fail_liq_derived": 0
+  }
+ },
+ "errors": [],
+ "rules": {
+  "bonding_curve": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 15000,
+   "mcap_max": 90000,
+   "vol24_min": 20000,
+   "liq_min": 5000,
+   "max_vol24_to_liq": 100
+  },
+  "pumpswap": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 40000,
+   "mcap_max": 8000000,
+   "vol24_min": 40000,
+   "liq_min": 12000,
+   "max_vol24_to_liq": 40
+  },
+  "max_out": 10,
+  "drop_if_sells_gt_buys_in": [
+   "m15",
+   "h1"
+  ],
+  "quote": "SOL only (custom-pair coins dropped)",
+  "min_buys_h1": 10,
+  "min_buys_m15": 2,
+  "curve_complete_sol": 80,
+  "stale": "reject if txns (m15+h1) and mcap unchanged for 3 consecutive scans (current = previous 2)",
+  "stale_scans": 3
+ },
+ "candidates": [
+  {
+   "pool": "3AX1xG9t725R8Lf3quVv6qfCeoVLCoWadfskpn8zEyZf",
+   "name": "FABLES / SOL",
+   "venue": "pumpswap",
+   "dex": "pumpswap",
+   "base_token": "3xuF2M6bCkYaKFPZG9Wm3F14nVunXMDrAfWnGyPjoVDV",
+   "age_h": 2.38,
+   "liquidity_usd": 374243.1,
+   "liq_derived": false,
+   "gt_reserve_usd": 374243.104,
+   "curve": null,
+   "vol_h24": 14500332.75,
+   "vol_h6": 14500332.7502415,
+   "mcap_usd": 1122866.32,
+   "price_usd": 1.1257026563828783e-05,
+   "sol_usd": 104.67233754104731,
+   "tx_m15": {
+    "buys": 715,
+    "sells": 646,
+    "buyers": 170,
+    "sellers": 110
+   },
+   "tx_h1": {
+    "buys": 3016,
+    "sells": 2692,
+    "buyers": 477,
+    "sellers": 203
+   },
+   "pc_h1": 11.813,
+   "buyers_h1": 477,
+   "buyers_h6": 1021,
+   "score": -0.0046,
+   "url": "https://www.geckoterminal.com/solana/pools/3AX1xG9t725R8Lf3quVv6qfCeoVLCoWadfskpn8zEyZf",
+   "fail_keys": [],
+   "fails": [],
+   "fp": "[{\"buyers\": 170, \"buys\": 715, \"sellers\": 110, \"sells\": 646}, {\"buyers\": 477, \"buys\": 3016, \"sellers\": 203, \"sells\": 2692}, 1122866.32]"
+  }
+ ],
+ "run_id": "20261020T030003"
+}

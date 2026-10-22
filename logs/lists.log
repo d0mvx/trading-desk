@@ -1,0 +1,565 @@
+2026-10-20 13:30:02 CEST [LISTS] INSIDERS null (hold): SEC_USER_AGENT with a contact e-mail is not set in ~/.desk/sec.env (SEC requires it)
+{
+ "list": "INSIDERS",
+ "status": "null",
+ "generated_at": "2026-10-20T13:30:02+02:00",
+ "reason": "SEC_USER_AGENT with a contact e-mail is not set in ~/.desk/sec.env (SEC requires it) -> null = hold",
+ "source": "SEC EDGAR Form 4",
+ "names": []
+}
+2026-10-20 13:30:27 CEST [LISTS] DRIFT 13 names (surprise >= p90 71.2%): AFRM, CBRL, BBWI, ESTC, KSS, CRM, JILL, WDAY
+{
+ "list": "DRIFT",
+ "status": "ok",
+ "generated_at": "2026-10-20T13:30:27+02:00",
+ "rule": "reported in last 40 sessions (2026-08-24..2026-10-19), surprise >= p90 (71.2%), closed up on report day",
+ "guards": ">= 2 estimates, mcap >= $300M, price >= $5, tradable on Alpaca",
+ "source": "Nasdaq earnings calendar (unofficial public API) + Alpaca SIP daily bars",
+ "reports_in_window": 351,
+ "eligible_reports": 236,
+ "top_decile_threshold_pct": 71.16,
+ "top_decile_symbols": 24,
+ "names": [
+  [
+   "AFRM",
+   1300.0,
+   "2026-08-27"
+  ],
+  [
+   "CBRL",
+   395.0,
+   "2026-09-23"
+  ],
+  [
+   "BBWI",
+   158.33,
+   "2026-08-26"
+  ],
+  [
+   "ESTC",
+   140.0,
+   "2026-08-27"
+  ],
+  [
+   "KSS",
+   132.73,
+   "2026-08-26"
+  ],
+  [
+   "CRM",
+   110.64,
+   "2026-08-26"
+  ],
+  [
+   "JILL",
+   110.17,
+   "2026-09-09"
+  ],
+  [
+   "WDAY",
+   104.76,
+   "2026-08-27"
+  ],
+  [
+   "APOG",
+   98.31,
+   "2026-10-06"
+  ],
+  [
+   "HELE",
+   84.37,
+   "2026-10-08"
+  ],
+  [
+   "NTNX",
+   78.95,
+   "2026-08-26"
+  ],
+  [
+   "LUXE",
+   76.47,
+   "2026-09-16"
+  ],
+  [
+   "DOO",
+   71.74,
+   "2026-09-03"
+  ]
+ ]
+}
+2026-10-20 13:30:27 CEST [LISTS] done rc=0
+Traceback (most recent call last):
+  File "/home/box/.desk/lists_insiders.py", line 161, in <module>
+    o = build(md)
+  File "/home/box/.desk/lists_insiders.py", line 115, in build
+    try: return _build(max_days)
+                ~~~~~~^^^^^^^^^^
+  File "/home/box/.desk/lists_insiders.py", line 123, in _build
+    res = [crawl_day(d) for d in days]
+           ~~~~~~~~~^^^
+  File "/home/box/.desk/lists_insiders.py", line 76, in crawl_day
+    idx = get(f"https://www.sec.gov/Archives/edgar/daily-index/{d.year}/QTR{q}/form.{d:%Y%m%d}.idx")
+  File "/home/box/.desk/lists_insiders.py", line 41, in get
+    raise RuntimeError(f"SEC fetch failed: {url}")
+RuntimeError: SEC fetch failed: https://www.sec.gov/Archives/edgar/daily-index/2026/QTR4/form.20261012.idx
+2026-10-20 14:42:41 CEST [LISTS] DRIFT 13 names (surprise >= p90 71.2%): AFRM, CBRL, BBWI, ESTC, KSS, CRM, JILL, WDAY
+{
+ "list": "DRIFT",
+ "status": "ok",
+ "generated_at": "2026-10-20T14:42:41+02:00",
+ "rule": "reported in last 40 sessions (2026-08-24..2026-10-19), surprise >= p90 (71.2%), closed up on report day",
+ "guards": ">= 2 estimates, mcap >= $300M, price >= $5, tradable on Alpaca",
+ "source": "Nasdaq earnings calendar (unofficial public API) + Alpaca SIP daily bars",
+ "reports_in_window": 351,
+ "eligible_reports": 236,
+ "top_decile_threshold_pct": 71.16,
+ "top_decile_symbols": 24,
+ "names": [
+  [
+   "AFRM",
+   1300.0,
+   "2026-08-27"
+  ],
+  [
+   "CBRL",
+   395.0,
+   "2026-09-23"
+  ],
+  [
+   "BBWI",
+   158.33,
+   "2026-08-26"
+  ],
+  [
+   "ESTC",
+   140.0,
+   "2026-08-27"
+  ],
+  [
+   "KSS",
+   132.73,
+   "2026-08-26"
+  ],
+  [
+   "CRM",
+   110.64,
+   "2026-08-26"
+  ],
+  [
+   "JILL",
+   110.17,
+   "2026-09-09"
+  ],
+  [
+   "WDAY",
+   104.76,
+   "2026-08-27"
+  ],
+  [
+   "APOG",
+   98.31,
+   "2026-10-06"
+  ],
+  [
+   "HELE",
+   84.37,
+   "2026-10-08"
+  ],
+  [
+   "NTNX",
+   78.95,
+   "2026-08-26"
+  ],
+  [
+   "LUXE",
+   76.47,
+   "2026-09-16"
+  ],
+  [
+   "DOO",
+   71.74,
+   "2026-09-03"
+  ]
+ ]
+}
+2026-10-20 14:42:41 CEST [LISTS] done rc=0
+[INSIDERS] 2026-10-09 564 Form 4 filings, 138 purchase rows, 0 errors, 113s
+[INSIDERS] 2026-10-08 639 Form 4 filings, 170 purchase rows, 0 errors, 128s
+[INSIDERS] 2026-10-07 660 Form 4 filings, 242 purchase rows, 0 errors, 132s
+[INSIDERS] 2026-10-06 836 Form 4 filings, 157 purchase rows, 0 errors, 167s
+[INSIDERS] 2026-10-05 2413 Form 4 filings, 302 purchase rows, 0 errors, 486s
+[INSIDERS] 2026-10-02 3079 Form 4 filings, 434 purchase rows, 0 errors, 616s
+[INSIDERS] 2026-10-01 1520 Form 4 filings, 258 purchase rows, 0 errors, 310s
+[INSIDERS] 2026-09-30 669 Form 4 filings, 3908 purchase rows, 0 errors, 134s
+[INSIDERS] 2026-09-29 797 Form 4 filings, 140 purchase rows, 0 errors, 159s
+[INSIDERS] 2026-09-28 753 Form 4 filings, 153 purchase rows, 0 errors, 151s
+[INSIDERS] 2026-09-25 666 Form 4 filings, 284 purchase rows, 0 errors, 133s
+[INSIDERS] 2026-09-24 663 Form 4 filings, 410 purchase rows, 0 errors, 133s
+[INSIDERS] 2026-09-23 608 Form 4 filings, 210 purchase rows, 0 errors, 122s
+[INSIDERS] 2026-09-22 846 Form 4 filings, 249 purchase rows, 0 errors, 169s
+[INSIDERS] 2026-09-21 805 Form 4 filings, 252 purchase rows, 0 errors, 224s
+[INSIDERS] 2026-09-18 900 Form 4 filings, 154 purchase rows, 0 errors, 180s
+[INSIDERS] 2026-09-17 1457 Form 4 filings, 452 purchase rows, 0 errors, 293s
+[INSIDERS] 2026-09-16 1276 Form 4 filings, 289 purchase rows, 0 errors, 255s
+2026-10-20 15:52:12 CEST [LISTS] INSIDERS 19 names KOD, ADRX, GME, PAM, ETRA, BPRE, QVCG, COUR
+{
+ "list": "INSIDERS",
+ "status": "ok",
+ "generated_at": "2026-10-20T15:52:12+02:00",
+ "rule": ">= 3 distinct insiders, open-market buys (code P), trade date >= 2026-09-20, total > $500,000, excl. 10b5-1",
+ "source": "SEC EDGAR Form 4 (daily form index + full submission)",
+ "filing_days_checked": 24,
+ "filing_days_missing": [],
+ "purchase_rows_in_window": 1717,
+ "qualifying_not_tradable": [
+  "HEI, HEI.A",
+  "BBASX"
+ ],
+ "reason": null,
+ "names": [
+  "KOD",
+  "ADRX",
+  "GME",
+  "PAM",
+  "ETRA",
+  "BPRE",
+  "QVCG",
+  "COUR",
+  "PORT.U",
+  "CTY",
+  "GPUS",
+  "ACCV",
+  "GOLD",
+  "TRXB",
+  "FLSC",
+  "LWAY",
+  "DKS",
+  "NUAI",
+  "FUL"
+ ]
+}
+2026-10-20 15:52:43 CEST [LISTS] DRIFT 13 names (surprise >= p90 71.2%): AFRM, CBRL, BBWI, ESTC, KSS, CRM, JILL, WDAY
+{
+ "list": "DRIFT",
+ "status": "ok",
+ "generated_at": "2026-10-20T15:52:43+02:00",
+ "rule": "reported in last 40 sessions (2026-08-24..2026-10-19), surprise >= p90 (71.2%), closed up on report day",
+ "guards": ">= 2 estimates, mcap >= $300M, price >= $5, tradable on Alpaca",
+ "source": "Nasdaq earnings calendar (unofficial public API) + Alpaca SIP daily bars",
+ "reports_in_window": 351,
+ "eligible_reports": 236,
+ "top_decile_threshold_pct": 71.16,
+ "top_decile_symbols": 24,
+ "names": [
+  [
+   "AFRM",
+   1300.0,
+   "2026-08-27"
+  ],
+  [
+   "CBRL",
+   395.0,
+   "2026-09-23"
+  ],
+  [
+   "BBWI",
+   158.33,
+   "2026-08-26"
+  ],
+  [
+   "ESTC",
+   140.0,
+   "2026-08-27"
+  ],
+  [
+   "KSS",
+   132.73,
+   "2026-08-26"
+  ],
+  [
+   "CRM",
+   110.64,
+   "2026-08-26"
+  ],
+  [
+   "JILL",
+   110.17,
+   "2026-09-09"
+  ],
+  [
+   "WDAY",
+   104.76,
+   "2026-08-27"
+  ],
+  [
+   "APOG",
+   98.31,
+   "2026-10-06"
+  ],
+  [
+   "HELE",
+   84.37,
+   "2026-10-08"
+  ],
+  [
+   "NTNX",
+   78.95,
+   "2026-08-26"
+  ],
+  [
+   "LUXE",
+   76.47,
+   "2026-09-16"
+  ],
+  [
+   "DOO",
+   71.74,
+   "2026-09-03"
+  ]
+ ]
+}
+2026-10-20 15:52:43 CEST [LISTS] done rc=0
+[INSIDERS] 2026-10-12 no EDGAR daily index (404/403 AccessDenied: federal holiday or not published yet) -> skipped
+2026-10-20 16:01:08 CEST [LISTS] INSIDERS 3 names GME, BPRE, DKS
+{
+ "list": "INSIDERS",
+ "status": "ok",
+ "generated_at": "2026-10-20T16:01:08+02:00",
+ "rule": ">= 3 distinct insider GROUPS, open-market buys (code P), trade date >= 2026-09-20, total > $500,000, excl. 10b5-1",
+ "source": "SEC EDGAR Form 4 (daily form index + full submission)",
+ "filing_days_checked": 24,
+ "filing_days_missing": [],
+ "purchase_rows_in_window": 1717,
+ "qualifying_not_tradable": [
+  "HEI, HEI.A",
+  "BBASX"
+ ],
+ "dropped_after_grouping": {
+  "CTY": "0 distinct buyer group(s), $0 counted; excluded pre/at-listing $6,120,000 (first bar 2026-10-16)",
+  "FUL": "1 distinct buyer group(s), $1,146,316 counted",
+  "PAM": "1 distinct buyer group(s), $42,660,617 counted",
+  "FLSC": "SPAC / blank-check issuer (Frazier Life Sciences Acquisition Corp. II, SIC BLANK CHECKS [6770])",
+  "GOLD": "1 distinct buyer group(s), $3,983,019 counted",
+  "TRXB": "1 distinct buyer group(s), $2,499,994 counted; excluded offering-type $1,299,998",
+  "NUAI": "1 distinct buyer group(s), $1,192,350 counted",
+  "QVCG": "1 distinct buyer group(s), $21,386,392 counted",
+  "LWAY": "1 distinct buyer group(s), $2,169,394 counted",
+  "ACCV": "0 distinct buyer group(s), $0 counted; excluded offering-type $4,098,600",
+  "PORT.U": "SPAC / blank-check issuer (Southport Acquisition Corp. II, SIC BLANK CHECKS [6770])",
+  "GPUS": "2 distinct buyer group(s), $5,220,592 counted",
+  "ADRX": "0 distinct buyer group(s), $0 counted; excluded offering-type $33,345,772; excluded pre/at-listing $54,400,000 (first bar 2026-09-25)",
+  "KOD": "1 distinct buyer group(s), $156,986,394 counted",
+  "COUR": "1 distinct buyer group(s), $11,355,072 counted",
+  "ETRA": "0 distinct buyer group(s), $0 counted; excluded offering-type $39,999,990"
+ },
+ "grouping": "related reporting owners = 1 buyer (joint filing, shared non-issuer address, fund-family/surname root, SPAC sponsors); offering-type buys excluded (footnotes: private placement/IPO/units/PIPE/underwritten/registered direct..., unit/warrant securities, blank-check issuers, buys on/before first trading day+3d)",
+ "reason": null,
+ "names": [
+  "GME",
+  "BPRE",
+  "DKS"
+ ]
+}
+2026-10-20 16:01:31 CEST [LISTS] DRIFT 13 names (surprise >= p90 71.2%): AFRM, CBRL, BBWI, ESTC, KSS, CRM, JILL, WDAY
+{
+ "list": "DRIFT",
+ "status": "ok",
+ "generated_at": "2026-10-20T16:01:31+02:00",
+ "rule": "reported in last 40 sessions (2026-08-24..2026-10-19), surprise >= p90 (71.2%), closed up on report day",
+ "guards": ">= 2 estimates, mcap >= $300M, price >= $5, tradable on Alpaca",
+ "source": "Nasdaq earnings calendar (unofficial public API) + Alpaca SIP daily bars",
+ "reports_in_window": 351,
+ "eligible_reports": 236,
+ "top_decile_threshold_pct": 71.16,
+ "top_decile_symbols": 24,
+ "names": [
+  [
+   "AFRM",
+   1300.0,
+   "2026-08-27"
+  ],
+  [
+   "CBRL",
+   395.0,
+   "2026-09-23"
+  ],
+  [
+   "BBWI",
+   158.33,
+   "2026-08-26"
+  ],
+  [
+   "ESTC",
+   140.0,
+   "2026-08-27"
+  ],
+  [
+   "KSS",
+   132.73,
+   "2026-08-26"
+  ],
+  [
+   "CRM",
+   110.64,
+   "2026-08-26"
+  ],
+  [
+   "JILL",
+   110.17,
+   "2026-09-09"
+  ],
+  [
+   "WDAY",
+   104.76,
+   "2026-08-27"
+  ],
+  [
+   "APOG",
+   98.31,
+   "2026-10-06"
+  ],
+  [
+   "HELE",
+   84.37,
+   "2026-10-08"
+  ],
+  [
+   "NTNX",
+   78.95,
+   "2026-08-26"
+  ],
+  [
+   "LUXE",
+   76.47,
+   "2026-09-16"
+  ],
+  [
+   "DOO",
+   71.74,
+   "2026-09-03"
+  ]
+ ]
+}
+2026-10-20 16:01:31 CEST [LISTS] done rc=0
+[INSIDERS] 2026-10-12 no EDGAR daily index (404/403 AccessDenied: federal holiday or not published yet) -> skipped
+2026-10-20 16:02:08 CEST [LISTS] INSIDERS 4 names GME, BPRE, DKS, FUL
+{
+ "list": "INSIDERS",
+ "status": "ok",
+ "generated_at": "2026-10-20T16:02:08+02:00",
+ "rule": ">= 3 distinct insider GROUPS, open-market buys (code P), trade date >= 2026-09-20, total > $500,000, excl. 10b5-1",
+ "source": "SEC EDGAR Form 4 (daily form index + full submission)",
+ "filing_days_checked": 24,
+ "filing_days_missing": [],
+ "purchase_rows_in_window": 1717,
+ "qualifying_not_tradable": [
+  "HEI, HEI.A",
+  "BBASX"
+ ],
+ "dropped_after_grouping": {
+  "CTY": "0 distinct buyer group(s), $0 counted; excluded pre/at-listing $6,120,000 (first bar 2026-10-16)",
+  "PAM": "2 distinct buyer group(s), $42,660,617 counted",
+  "FLSC": "SPAC / blank-check issuer (Frazier Life Sciences Acquisition Corp. II, SIC BLANK CHECKS [6770])",
+  "GOLD": "1 distinct buyer group(s), $3,983,019 counted",
+  "TRXB": "1 distinct buyer group(s), $2,499,994 counted; excluded offering-type $1,299,998",
+  "NUAI": "1 distinct buyer group(s), $1,192,350 counted",
+  "QVCG": "1 distinct buyer group(s), $21,386,392 counted",
+  "LWAY": "1 distinct buyer group(s), $2,169,394 counted",
+  "ACCV": "0 distinct buyer group(s), $0 counted; excluded offering-type $4,098,600",
+  "PORT.U": "SPAC / blank-check issuer (Southport Acquisition Corp. II, SIC BLANK CHECKS [6770])",
+  "GPUS": "2 distinct buyer group(s), $5,220,592 counted",
+  "ADRX": "0 distinct buyer group(s), $0 counted; excluded offering-type $33,345,772; excluded pre/at-listing $54,400,000 (first bar 2026-09-25)",
+  "KOD": "1 distinct buyer group(s), $156,986,394 counted",
+  "COUR": "1 distinct buyer group(s), $11,355,072 counted",
+  "ETRA": "0 distinct buyer group(s), $0 counted; excluded offering-type $39,999,990"
+ },
+ "grouping": "related reporting owners = 1 buyer (joint filing, shared non-issuer address, fund-family/surname root, SPAC sponsors); offering-type buys excluded (footnotes: private placement/IPO/units/PIPE/underwritten/registered direct..., unit/warrant securities, blank-check issuers, buys on/before first trading day+3d)",
+ "reason": null,
+ "names": [
+  "GME",
+  "BPRE",
+  "DKS",
+  "FUL"
+ ]
+}
+2026-10-20 16:02:35 CEST [LISTS] DRIFT 13 names (surprise >= p90 71.2%): AFRM, CBRL, BBWI, ESTC, KSS, CRM, JILL, WDAY
+{
+ "list": "DRIFT",
+ "status": "ok",
+ "generated_at": "2026-10-20T16:02:35+02:00",
+ "rule": "reported in last 40 sessions (2026-08-24..2026-10-19), surprise >= p90 (71.2%), closed up on report day",
+ "guards": ">= 2 estimates, mcap >= $300M, price >= $5, tradable on Alpaca",
+ "source": "Nasdaq earnings calendar (unofficial public API) + Alpaca SIP daily bars",
+ "reports_in_window": 351,
+ "eligible_reports": 236,
+ "top_decile_threshold_pct": 71.16,
+ "top_decile_symbols": 24,
+ "names": [
+  [
+   "AFRM",
+   1300.0,
+   "2026-08-27"
+  ],
+  [
+   "CBRL",
+   395.0,
+   "2026-09-23"
+  ],
+  [
+   "BBWI",
+   158.33,
+   "2026-08-26"
+  ],
+  [
+   "ESTC",
+   140.0,
+   "2026-08-27"
+  ],
+  [
+   "KSS",
+   132.73,
+   "2026-08-26"
+  ],
+  [
+   "CRM",
+   110.64,
+   "2026-08-26"
+  ],
+  [
+   "JILL",
+   110.17,
+   "2026-09-09"
+  ],
+  [
+   "WDAY",
+   104.76,
+   "2026-08-27"
+  ],
+  [
+   "APOG",
+   98.31,
+   "2026-10-06"
+  ],
+  [
+   "HELE",
+   84.37,
+   "2026-10-08"
+  ],
+  [
+   "NTNX",
+   78.95,
+   "2026-08-26"
+  ],
+  [
+   "LUXE",
+   76.47,
+   "2026-09-16"
+  ],
+  [
+   "DOO",
+   71.74,
+   "2026-09-03"
+  ]
+ ]
+}
+2026-10-20 16:02:35 CEST [LISTS] done rc=0

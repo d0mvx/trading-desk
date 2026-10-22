@@ -1,0 +1,15 @@
+[INSIDERS] 2026-10-19 990 Form 4 filings, 125 purchase rows, 0 errors, 165s
+[INSIDERS] 2026-10-16 912 Form 4 filings, 100 purchase rows, 0 errors, 152s
+[INSIDERS] 2026-10-15 605 Form 4 filings, 184 purchase rows, 0 errors, 101s
+[INSIDERS] 2026-10-14 678 Form 4 filings, 140 purchase rows, 0 errors, 113s
+[INSIDERS] 2026-10-13 1045 Form 4 filings, 386 purchase rows, 0 errors, 174s
+Traceback (most recent call last):
+  File "/home/box/.desk/lists_insiders.py", line 141, in <module>
+  File "/home/box/.desk/lists_insiders.py", line 106, in build
+    res = [crawl_day(d) for d in days]
+           ~~~~~~~~~^^^
+  File "/home/box/.desk/lists_insiders.py", line 70, in crawl_day
+    idx = get(f"https://www.sec.gov/Archives/edgar/daily-index/{d.year}/QTR{q}/form.{d:%Y%m%d}.idx")
+  File "/home/box/.desk/lists_insiders.py", line 35, in get
+    raise RuntimeError(f"SEC fetch failed: {url}")
+RuntimeError: SEC fetch failed: https://www.sec.gov/Archives/edgar/daily-index/2026/QTR4/form.20261012.idx

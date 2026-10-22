@@ -1,0 +1,89 @@
+{
+ "scanned_at": "2026-10-20T14:42:02+02:00",
+ "network": "solana",
+ "source": "geckoterminal",
+ "pump_fun_frontend_api": "not used (Cloudflare 403 keyless)",
+ "gt_calls": 8,
+ "pools_seen": 141,
+ "rejected_by_first_rule": {
+  "liquidity < $5.0k": 29,
+  "curve complete": 9,
+  "quote not SOL": 2,
+  "liquidity < $12.0k": 32,
+  "vol/liq wash": 7,
+  "buys h1 < 10": 1,
+  "age < 15m": 48
+ },
+ "rejected_by_reason": {
+  "liquidity < $5.0k": 72,
+  "24h vol < $20.0k": 48,
+  "mcap < $15.0k": 70,
+  "buys h1 < 10": 91,
+  "buys m15 < 2": 69,
+  "vol/liq wash": 63,
+  "sells > buys h1": 31,
+  "stale data": 74,
+  "quote not SOL": 14,
+  "curve complete": 9,
+  "sells > buys m15": 26,
+  "liquidity < $12.0k": 32,
+  "mcap < $40.0k": 9,
+  "mcap > $8.00M": 1,
+  "age < 15m": 48,
+  "24h vol < $40.0k": 3
+ },
+ "rejected_total": 128,
+ "bonding_curve_liq_derived": 72,
+ "venue_stats": {
+  "bonding_curve": {
+   "evaluated": 85,
+   "passed": 0,
+   "rejected": 85,
+   "gt_liq_zero_or_null": 10,
+   "gt_zero_now_pass_liq": 9,
+   "fail_liq_derived": 61
+  },
+  "pumpswap": {
+   "evaluated": 43,
+   "passed": 0,
+   "rejected": 43,
+   "gt_liq_zero_or_null": 0,
+   "gt_zero_now_pass_liq": 0,
+   "fail_liq_derived": 0
+  }
+ },
+ "errors": [],
+ "rules": {
+  "bonding_curve": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 15000,
+   "mcap_max": 90000,
+   "vol24_min": 20000,
+   "liq_min": 5000,
+   "max_vol24_to_liq": 100
+  },
+  "pumpswap": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 40000,
+   "mcap_max": 8000000,
+   "vol24_min": 40000,
+   "liq_min": 12000,
+   "max_vol24_to_liq": 40
+  },
+  "max_out": 10,
+  "drop_if_sells_gt_buys_in": [
+   "m15",
+   "h1"
+  ],
+  "quote": "SOL only (custom-pair coins dropped)",
+  "min_buys_h1": 10,
+  "min_buys_m15": 2,
+  "curve_complete_sol": 80,
+  "stale": "reject if txns (m15+h1) and mcap unchanged for 3 consecutive scans (current = previous 2)",
+  "stale_scans": 3
+ },
+ "candidates": [],
+ "run_id": "20261020T144202"
+}

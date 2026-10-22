@@ -1,0 +1,91 @@
+{
+ "scanned_at": "2026-10-20T04:43:02+02:00",
+ "network": "solana",
+ "source": "geckoterminal",
+ "pump_fun_frontend_api": "not used (Cloudflare 403 keyless)",
+ "gt_calls": 8,
+ "pools_seen": 130,
+ "rejected_by_first_rule": {
+  "liquidity < $5.0k": 30,
+  "curve complete": 9,
+  "age > 72h": 1,
+  "liquidity < $12.0k": 34,
+  "vol/liq wash": 4,
+  "buys h1 < 10": 1,
+  "mcap > $8.00M": 1,
+  "age < 15m": 46
+ },
+ "rejected_by_reason": {
+  "liquidity < $5.0k": 71,
+  "24h vol < $20.0k": 44,
+  "mcap < $15.0k": 66,
+  "quote not SOL": 16,
+  "buys h1 < 10": 94,
+  "buys m15 < 2": 80,
+  "stale data": 63,
+  "vol/liq wash": 58,
+  "sells > buys h1": 15,
+  "curve complete": 9,
+  "sells > buys m15": 8,
+  "age > 72h": 1,
+  "liquidity < $12.0k": 35,
+  "mcap < $40.0k": 13,
+  "mcap > $8.00M": 3,
+  "age < 15m": 46,
+  "24h vol < $40.0k": 5
+ },
+ "rejected_total": 126,
+ "bonding_curve_liq_derived": 65,
+ "venue_stats": {
+  "bonding_curve": {
+   "evaluated": 81,
+   "passed": 0,
+   "rejected": 81,
+   "gt_liq_zero_or_null": 11,
+   "gt_zero_now_pass_liq": 8,
+   "fail_liq_derived": 55
+  },
+  "pumpswap": {
+   "evaluated": 45,
+   "passed": 0,
+   "rejected": 45,
+   "gt_liq_zero_or_null": 0,
+   "gt_zero_now_pass_liq": 0,
+   "fail_liq_derived": 0
+  }
+ },
+ "errors": [],
+ "rules": {
+  "bonding_curve": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 15000,
+   "mcap_max": 90000,
+   "vol24_min": 20000,
+   "liq_min": 5000,
+   "max_vol24_to_liq": 100
+  },
+  "pumpswap": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 40000,
+   "mcap_max": 8000000,
+   "vol24_min": 40000,
+   "liq_min": 12000,
+   "max_vol24_to_liq": 40
+  },
+  "max_out": 10,
+  "drop_if_sells_gt_buys_in": [
+   "m15",
+   "h1"
+  ],
+  "quote": "SOL only (custom-pair coins dropped)",
+  "min_buys_h1": 10,
+  "min_buys_m15": 2,
+  "curve_complete_sol": 80,
+  "stale": "reject if txns (m15+h1) and mcap unchanged for 3 consecutive scans (current = previous 2)",
+  "stale_scans": 3
+ },
+ "candidates": [],
+ "run_id": "20261020T044302"
+}

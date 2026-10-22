@@ -1,0 +1,124 @@
+{
+  "date": "2026-10-22",
+  "generated_at": "2026-10-22T03:20:01+02:00",
+  "inputs": {
+    "liquidity": {
+      "net_liquidity_bn": 5872.1,
+      "as_of": "2026-10-14",
+      "4w_ago_bn": 5864.1,
+      "4w_ago_date": "2026-09-16",
+      "change_4w_bn": 7.9,
+      "rule": "green if 4w change > 0"
+    },
+    "volatility": {
+      "vix_last": 16.68,
+      "as_of": "2026-10-21",
+      "rule": "green if < 22"
+    },
+    "btc": {
+      "close": 84024.29,
+      "sma200": 72734.42,
+      "bar_date": "2026-10-21",
+      "rule": "green if close > 200d avg"
+    },
+    "sol": {
+      "close": 106.86,
+      "sma50": 109.59,
+      "bar_date": "2026-10-21",
+      "rule": "green if close > 50d avg"
+    },
+    "nasdaq": {
+      "qqq_close": 725.25,
+      "sma200": 676.45,
+      "bar_date": "2026-10-21",
+      "bars": 289,
+      "feed": "IEX",
+      "rule": "green if close > 200d avg"
+    }
+  },
+  "greens": {
+    "liquidity": true,
+    "volatility": true,
+    "credit": false,
+    "btc": true,
+    "sol": false,
+    "nasdaq": true
+  },
+  "dial": {
+    "meme": 0.75,
+    "stocks": 0.75,
+    "crypto": 0.5
+  },
+  "dial_raw": {
+    "meme": 0.75,
+    "stocks": 0.75,
+    "crypto": 0.6666
+  },
+  "dial_interpretation": {
+    "meme": "three-quarters",
+    "stocks": "three-quarters",
+    "crypto": "half"
+  },
+  "crypto_targets": {
+    "method": "close(t-30d)/close(t-365d)-1; top 2 positive, equal weight; none -> cash",
+    "scores": {
+      "BTC": -0.2009,
+      "ETH": -0.2836,
+      "SOL": -0.3597
+    },
+    "weights": {},
+    "cash": 1.0
+  },
+  "data_age_hours": {
+    "WALCL": 193.3,
+    "WTREGEN": 193.3,
+    "RRPONTSYD": 25.3,
+    "VIXCLS": 25.3,
+    "BTC/USD": 1.3,
+    "SOL/USD": 1.3,
+    "ETH/USD": 1.3,
+    "QQQ": 5.3
+  },
+  "max_normal_age_hours": {
+    "WALCL": 240,
+    "WTREGEN": 240,
+    "RRPONTSYD": 120,
+    "VIXCLS": 120,
+    "BAMLH0A0HYM2": 120,
+    "BTC/USD": 48,
+    "SOL/USD": 48,
+    "ETH/USD": 48,
+    "QQQ": 120
+  },
+  "degraded": [
+    "BAMLH0A0HYM2"
+  ],
+  "sources": {
+    "WALCL": "fed_h41",
+    "WTREGEN": "fed_h41",
+    "RRPONTSYD": "nyfed",
+    "VIXCLS": "cboe"
+  },
+  "fetch_notes": {
+    "WALCL": [
+      "fred: requests: WALCL: non-CSV response from fredgraph.csv (FRED maintenance page); curl: WALCL: non-CSV response from fredgraph.csv (FRED maintenance page)"
+    ],
+    "WTREGEN": [
+      "fred: requests: WTREGEN: non-CSV response from fredgraph.csv (FRED maintenance page); curl: WTREGEN: non-CSV response from fredgraph.csv (FRED maintenance page)"
+    ],
+    "RRPONTSYD": [
+      "fred: requests: RRPONTSYD: non-CSV response from fredgraph.csv (FRED maintenance page); curl: RRPONTSYD: non-CSV response from fredgraph.csv (FRED maintenance page)"
+    ],
+    "VIXCLS": [
+      "fred: requests: VIXCLS: non-CSV response from fredgraph.csv (FRED maintenance page); curl: VIXCLS: non-CSV response from fredgraph.csv (FRED maintenance page)"
+    ],
+    "BAMLH0A0HYM2": [
+      "fred: requests: BAMLH0A0HYM2: non-CSV response from fredgraph.csv (FRED maintenance page); curl: BAMLH0A0HYM2: non-CSV response from fredgraph.csv (FRED maintenance page)",
+      "fred_api: no FRED_API_KEY",
+      "cache: [Errno 2] No such file or directory: '/home/box/.desk/dial_cache/BAMLH0A0HYM2.csv'"
+    ]
+  },
+  "errors": {
+    "credit": "BAMLH0A0HYM2: all sources failed: fred: requests: BAMLH0A0HYM2: non-CSV response from fredgraph.csv (FRED maintenance page); curl: BAMLH0A0HYM2: non-CSV response from fredgraph.csv (FRED maintenance page) | fred_api: no FRED_API_KEY | cache: [Errno 2] No such file or directory: '/home/box/.desk/dial_cache/BAMLH0A0HYM2.csv'"
+  }
+}

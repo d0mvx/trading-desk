@@ -1,0 +1,122 @@
+{
+ "scanned_at": "2026-10-20T23:48:02+02:00",
+ "network": "solana",
+ "source": "geckoterminal",
+ "pump_fun_frontend_api": "frontend-api-v3 feeds used as extra candidate source (sources.py)",
+ "gt_calls": 6,
+ "pools_seen": 120,
+ "rejected_by_first_rule": {
+  "liquidity < $5.0k": 24,
+  "curve complete": 8,
+  "cooldown": 4,
+  "mcap < $15.0k": 2,
+  "stale data": 1,
+  "age > 72h": 1,
+  "vol/liq wash": 4,
+  "liquidity < $12.0k": 35,
+  "buys h1 < 10": 1,
+  "age < 15m": 31
+ },
+ "rejected_by_reason": {
+  "liquidity < $5.0k": 56,
+  "24h vol < $20.0k": 32,
+  "mcap < $15.0k": 53,
+  "stale data": 71,
+  "buys h1 < 10": 85,
+  "buys m15 < 2": 80,
+  "vol/liq wash": 58,
+  "quote not SOL": 18,
+  "curve complete": 9,
+  "sells > buys h1": 20,
+  "mcap > $90.0k": 1,
+  "cooldown": 4,
+  "sells > buys m15": 11,
+  "age > 72h": 1,
+  "liquidity < $12.0k": 35,
+  "mcap < $40.0k": 7,
+  "mcap > $8.00M": 1,
+  "age < 15m": 31,
+  "24h vol < $40.0k": 2
+ },
+ "rejected_total": 111,
+ "bonding_curve_liq_derived": 51,
+ "venue_stats": {
+  "bonding_curve": {
+   "evaluated": 69,
+   "passed": 0,
+   "rejected": 69,
+   "gt_liq_zero_or_null": 12,
+   "gt_zero_now_pass_liq": 10,
+   "fail_liq_derived": 40
+  },
+  "pumpswap": {
+   "evaluated": 42,
+   "passed": 0,
+   "rejected": 42,
+   "gt_liq_zero_or_null": 0,
+   "gt_zero_now_pass_liq": 0,
+   "fail_liq_derived": 0
+  }
+ },
+ "errors": [
+  "extra gt multi: HTTPError 504 Server Error: Gateway Timeout for url: https://api.gecko"
+ ],
+ "rules": {
+  "bonding_curve": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 15000,
+   "mcap_max": 90000,
+   "vol24_min": 20000,
+   "liq_min": 5000,
+   "max_vol24_to_liq": 100
+  },
+  "pumpswap": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 40000,
+   "mcap_max": 8000000,
+   "vol24_min": 40000,
+   "liq_min": 12000,
+   "max_vol24_to_liq": 40
+  },
+  "max_out": 25,
+  "drop_if_sells_gt_buys_in": [
+   "m15",
+   "h1"
+  ],
+  "quote": "SOL only (custom-pair coins dropped)",
+  "min_buys_h1": 10,
+  "min_buys_m15": 2,
+  "curve_complete_sol": 80,
+  "stale": "reject if txns (m15+h1) and mcap unchanged for 3 consecutive scans (current = previous 2)",
+  "stale_scans": 3
+ },
+ "candidates": [],
+ "sources": {
+  "geckoterminal_pools": 120,
+  "wallet_signal_mints": 2,
+  "pf_live": 50,
+  "pf_active": 50,
+  "pf_active2": 50,
+  "pf_curve_top": 50,
+  "ds_profiles": 25,
+  "ds_boosts": 20,
+  "ds_boosts_top": 21,
+  "ds_search_pumpswap": 30,
+  "ds_search_pumpfun": 30,
+  "ds_token_calls": 2,
+  "extra_mints": 102,
+  "prefilter_dropped": 76,
+  "prefilter_kept": 26,
+  "extra_requested": 26,
+  "extra_returned": 0,
+  "extra_gt_calls": 0,
+  "extra_pools_added": 0,
+  "wallet_signal_matched": 0
+ },
+ "cooldown_active": 31,
+ "cooldown_rejected": 4,
+ "watchlist_size": 2,
+ "run_id": "20261020T234802"
+}

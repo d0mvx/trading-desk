@@ -1,0 +1,88 @@
+{
+ "scanned_at": "2026-10-20T04:26:02+02:00",
+ "network": "solana",
+ "source": "geckoterminal",
+ "pump_fun_frontend_api": "not used (Cloudflare 403 keyless)",
+ "gt_calls": 8,
+ "pools_seen": 160,
+ "rejected_by_first_rule": {
+  "liquidity < $5.0k": 31,
+  "curve complete": 9,
+  "liquidity < $12.0k": 34,
+  "vol/liq wash": 4,
+  "buys h1 < 10": 1,
+  "mcap > $8.00M": 1,
+  "age < 15m": 74
+ },
+ "rejected_by_reason": {
+  "liquidity < $5.0k": 104,
+  "24h vol < $20.0k": 77,
+  "mcap < $15.0k": 102,
+  "quote not SOL": 17,
+  "buys h1 < 10": 104,
+  "buys m15 < 2": 84,
+  "stale data": 19,
+  "vol/liq wash": 56,
+  "curve complete": 9,
+  "sells > buys m15": 19,
+  "sells > buys h1": 28,
+  "liquidity < $12.0k": 34,
+  "mcap < $40.0k": 9,
+  "mcap > $8.00M": 3,
+  "age < 15m": 74
+ },
+ "rejected_total": 154,
+ "bonding_curve_liq_derived": 96,
+ "venue_stats": {
+  "bonding_curve": {
+   "evaluated": 113,
+   "passed": 0,
+   "rejected": 113,
+   "gt_liq_zero_or_null": 10,
+   "gt_zero_now_pass_liq": 8,
+   "fail_liq_derived": 87
+  },
+  "pumpswap": {
+   "evaluated": 41,
+   "passed": 0,
+   "rejected": 41,
+   "gt_liq_zero_or_null": 0,
+   "gt_zero_now_pass_liq": 0,
+   "fail_liq_derived": 0
+  }
+ },
+ "errors": [],
+ "rules": {
+  "bonding_curve": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 15000,
+   "mcap_max": 90000,
+   "vol24_min": 20000,
+   "liq_min": 5000,
+   "max_vol24_to_liq": 100
+  },
+  "pumpswap": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 40000,
+   "mcap_max": 8000000,
+   "vol24_min": 40000,
+   "liq_min": 12000,
+   "max_vol24_to_liq": 40
+  },
+  "max_out": 10,
+  "drop_if_sells_gt_buys_in": [
+   "m15",
+   "h1"
+  ],
+  "quote": "SOL only (custom-pair coins dropped)",
+  "min_buys_h1": 10,
+  "min_buys_m15": 2,
+  "curve_complete_sol": 80,
+  "stale": "reject if txns (m15+h1) and mcap unchanged for 3 consecutive scans (current = previous 2)",
+  "stale_scans": 3
+ },
+ "candidates": [],
+ "run_id": "20261020T042602"
+}

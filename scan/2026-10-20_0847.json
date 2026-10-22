@@ -1,0 +1,174 @@
+{
+ "scanned_at": "2026-10-20T08:47:03+02:00",
+ "network": "solana",
+ "source": "geckoterminal",
+ "pump_fun_frontend_api": "not used (Cloudflare 403 keyless)",
+ "gt_calls": 8,
+ "pools_seen": 143,
+ "rejected_by_first_rule": {
+  "liquidity < $5.0k": 30,
+  "curve complete": 8,
+  "age > 72h": 1,
+  "liquidity < $12.0k": 32,
+  "vol/liq wash": 4,
+  "buys h1 < 10": 2,
+  "mcap > $8.00M": 1,
+  "age < 15m": 54
+ },
+ "rejected_by_reason": {
+  "liquidity < $5.0k": 78,
+  "24h vol < $20.0k": 50,
+  "mcap < $15.0k": 74,
+  "quote not SOL": 18,
+  "stale data": 64,
+  "curve complete": 8,
+  "buys h1 < 10": 89,
+  "buys m15 < 2": 75,
+  "vol/liq wash": 63,
+  "sells > buys m15": 16,
+  "sells > buys h1": 20,
+  "age > 72h": 1,
+  "liquidity < $12.0k": 33,
+  "mcap < $40.0k": 10,
+  "mcap > $8.00M": 2,
+  "age < 15m": 54,
+  "24h vol < $40.0k": 6
+ },
+ "rejected_total": 132,
+ "bonding_curve_liq_derived": 69,
+ "venue_stats": {
+  "bonding_curve": {
+   "evaluated": 87,
+   "passed": 1,
+   "rejected": 86,
+   "gt_liq_zero_or_null": 10,
+   "gt_zero_now_pass_liq": 8,
+   "fail_liq_derived": 60
+  },
+  "pumpswap": {
+   "evaluated": 47,
+   "passed": 1,
+   "rejected": 46,
+   "gt_liq_zero_or_null": 1,
+   "gt_zero_now_pass_liq": 0,
+   "fail_liq_derived": 0
+  }
+ },
+ "errors": [],
+ "rules": {
+  "bonding_curve": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 15000,
+   "mcap_max": 90000,
+   "vol24_min": 20000,
+   "liq_min": 5000,
+   "max_vol24_to_liq": 100
+  },
+  "pumpswap": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 40000,
+   "mcap_max": 8000000,
+   "vol24_min": 40000,
+   "liq_min": 12000,
+   "max_vol24_to_liq": 40
+  },
+  "max_out": 10,
+  "drop_if_sells_gt_buys_in": [
+   "m15",
+   "h1"
+  ],
+  "quote": "SOL only (custom-pair coins dropped)",
+  "min_buys_h1": 10,
+  "min_buys_m15": 2,
+  "curve_complete_sol": 80,
+  "stale": "reject if txns (m15+h1) and mcap unchanged for 3 consecutive scans (current = previous 2)",
+  "stale_scans": 3
+ },
+ "candidates": [
+  {
+   "pool": "9DdUytab5F9biBPLoA25JJFWEvktF3A6A2qcuD8QRQE9",
+   "name": "Bien / SOL",
+   "venue": "pumpswap",
+   "dex": "pumpswap",
+   "base_token": "9zxGizEeUpnGR3dAAGSQti1pskxDBLA6ZBEZpwmaXoZp",
+   "age_h": 2.5,
+   "liquidity_usd": 190099.67,
+   "liq_derived": false,
+   "gt_reserve_usd": 190099.6676,
+   "curve": null,
+   "vol_h24": 7593144.13,
+   "vol_h6": 7593144.13113335,
+   "mcap_usd": 120601.079120601,
+   "price_usd": 0.00012147905848960177,
+   "sol_usd": 104.62173422768257,
+   "tx_m15": {
+    "buys": 531,
+    "sells": 252,
+    "buyers": 329,
+    "sellers": 50
+   },
+   "tx_h1": {
+    "buys": 2624,
+    "sells": 1226,
+    "buyers": 1449,
+    "sellers": 51
+   },
+   "pc_h1": 13.456,
+   "buyers_h1": 1449,
+   "buyers_h6": 3720,
+   "score": -0.1546,
+   "url": "https://www.geckoterminal.com/solana/pools/9DdUytab5F9biBPLoA25JJFWEvktF3A6A2qcuD8QRQE9",
+   "fail_keys": [],
+   "fails": [],
+   "fp": "[{\"buyers\": 329, \"buys\": 531, \"sellers\": 50, \"sells\": 252}, {\"buyers\": 1449, \"buys\": 2624, \"sellers\": 51, \"sells\": 1226}, 120601.079120601]"
+  },
+  {
+   "pool": "29NVEBMJsaoBtYwAvKxCLATL1Te4avVYm71xG3t7n7TE",
+   "name": "solienne / SOL",
+   "venue": "bonding_curve",
+   "dex": "pump-fun",
+   "base_token": "4RyBkJWeBbbEPAmvfQXoRUZTi1jJXs79tExmxpvNpump",
+   "age_h": 7.03,
+   "liquidity_usd": 5692.61,
+   "liq_derived": true,
+   "gt_reserve_usd": 8031.5219,
+   "curve": {
+    "virtual_sol": 84.4113,
+    "real_sol": 54.4113,
+    "sol_usd": 104.62180020011247,
+    "virtual_tokens": 381347034,
+    "progress_pct": 64.0,
+    "suspect": false,
+    "complete": false
+   },
+   "vol_h24": 264983.93,
+   "vol_h6": 77593.3417291161,
+   "mcap_usd": 23158.07307,
+   "price_usd": 2.3158073068093128e-05,
+   "sol_usd": 104.62180020011247,
+   "tx_m15": {
+    "buys": 78,
+    "sells": 56,
+    "buyers": 62,
+    "sellers": 45
+   },
+   "tx_h1": {
+    "buys": 111,
+    "sells": 99,
+    "buyers": 81,
+    "sellers": 74
+   },
+   "pc_h1": 73.724,
+   "buyers_h1": 81,
+   "buyers_h6": 364,
+   "score": -0.2673,
+   "url": "https://www.geckoterminal.com/solana/pools/29NVEBMJsaoBtYwAvKxCLATL1Te4avVYm71xG3t7n7TE",
+   "fail_keys": [],
+   "fails": [],
+   "fp": "[{\"buyers\": 62, \"buys\": 78, \"sellers\": 45, \"sells\": 56}, {\"buyers\": 81, \"buys\": 111, \"sellers\": 74, \"sells\": 99}, 23158.07307]"
+  }
+ ],
+ "run_id": "20261020T084703"
+}

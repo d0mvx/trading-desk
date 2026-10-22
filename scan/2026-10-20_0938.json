@@ -1,0 +1,89 @@
+{
+ "scanned_at": "2026-10-20T09:38:02+02:00",
+ "network": "solana",
+ "source": "geckoterminal",
+ "pump_fun_frontend_api": "not used (Cloudflare 403 keyless)",
+ "gt_calls": 8,
+ "pools_seen": 153,
+ "rejected_by_first_rule": {
+  "liquidity < $5.0k": 29,
+  "curve complete": 11,
+  "liquidity < $12.0k": 31,
+  "vol/liq wash": 6,
+  "buys h1 < 10": 2,
+  "mcap > $8.00M": 1,
+  "age < 15m": 61
+ },
+ "rejected_by_reason": {
+  "liquidity < $5.0k": 81,
+  "24h vol < $20.0k": 57,
+  "mcap < $15.0k": 80,
+  "stale data": 83,
+  "quote not SOL": 14,
+  "buys m15 < 2": 85,
+  "curve complete": 11,
+  "buys h1 < 10": 95,
+  "vol/liq wash": 59,
+  "sells > buys h1": 27,
+  "sells > buys m15": 22,
+  "liquidity < $12.0k": 32,
+  "mcap < $40.0k": 10,
+  "mcap > $8.00M": 2,
+  "age < 15m": 61,
+  "24h vol < $40.0k": 6
+ },
+ "rejected_total": 141,
+ "bonding_curve_liq_derived": 80,
+ "venue_stats": {
+  "bonding_curve": {
+   "evaluated": 94,
+   "passed": 0,
+   "rejected": 94,
+   "gt_liq_zero_or_null": 13,
+   "gt_zero_now_pass_liq": 11,
+   "fail_liq_derived": 68
+  },
+  "pumpswap": {
+   "evaluated": 47,
+   "passed": 0,
+   "rejected": 47,
+   "gt_liq_zero_or_null": 0,
+   "gt_zero_now_pass_liq": 0,
+   "fail_liq_derived": 0
+  }
+ },
+ "errors": [],
+ "rules": {
+  "bonding_curve": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 15000,
+   "mcap_max": 90000,
+   "vol24_min": 20000,
+   "liq_min": 5000,
+   "max_vol24_to_liq": 100
+  },
+  "pumpswap": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 40000,
+   "mcap_max": 8000000,
+   "vol24_min": 40000,
+   "liq_min": 12000,
+   "max_vol24_to_liq": 40
+  },
+  "max_out": 10,
+  "drop_if_sells_gt_buys_in": [
+   "m15",
+   "h1"
+  ],
+  "quote": "SOL only (custom-pair coins dropped)",
+  "min_buys_h1": 10,
+  "min_buys_m15": 2,
+  "curve_complete_sol": 80,
+  "stale": "reject if txns (m15+h1) and mcap unchanged for 3 consecutive scans (current = previous 2)",
+  "stale_scans": 3
+ },
+ "candidates": [],
+ "run_id": "20261020T093802"
+}

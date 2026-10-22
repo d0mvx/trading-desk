@@ -1,0 +1,66 @@
+<pre class='review'># Weekly review — 2026-10-20 21:16 Berlin (last 7 days, since Tue 13 Oct 21:16)
+
+Paper only. R = P&amp;L / (ticket x hard-stop %). Shadow = virtual trades the desk did not take; control = baseline bots (top / random scan passer, no judge gates).
+- **real**: 39 trades, win 36%, avg R +0.04, P&amp;L -0.20
+- **shadow**: 20 trades, win 20%, avg R -0.86, P&amp;L -8.35
+- **control**: no closed trades in window
+
+## Real trades by Berlin entry hour
+| Hour | n | win | avg R | P&amp;L $ |
+|---|---|---|---|---|
+| 05h | 1 | 0% | -1.18 | -0.53 |
+| 08h | 3 | 0% | -1.36 | -1.82 |
+| 15h | 5 | 40% | +0.17 | -0.18 |
+| 16h | 5 | 40% | +0.70 | +1.01 |
+| 17h | 6 | 50% | +0.38 | +1.31 |
+| 18h | 3 | 33% | -0.59 | -0.92 |
+| 19h | 8 | 38% | +0.57 | +1.93 |
+| 20h | 7 | 43% | -0.12 | -0.16 |
+| 21h | 1 | 0% | -1.85 | -0.84 |
+
+## Real trades by curve phase
+| Phase | n | win | avg R | P&amp;L $ |
+|---|---|---|---|---|
+| PumpSwap (graduated) | 26 | 46% | +0.45 | +5.59 |
+| bonding curve | 13 | 15% | -0.79 | -5.79 |
+
+## Real + shadow new pairs by narrative age at entry
+| Narrative age | n | win | avg R | P&amp;L $ |
+|---|---|---|---|---|
+| n/a (static term / not logged) | 4 | 75% | +1.05 | +1.44 |
+
+## Shadow + control by category
+| Category | n | win | avg R | P&amp;L $ |
+|---|---|---|---|---|
+| main:blocked:bonding_curve | 1 | 100% | +4.12 | +1.87 |
+| main:blocked:max_open | 1 | 0% | -1.03 | -0.47 |
+| main:gate:dip: falling knife | 1 | 0% | -0.25 | -0.11 |
+| main:gate:dip: no dip yet | 5 | 20% | -0.49 | -1.10 |
+| main:gate:dip: too deep | 4 | 25% | -1.52 | -2.80 |
+| main:gate:judge: price h1 | 4 | 0% | -2.12 | -3.91 |
+| main:gate:scan: cooldown | 3 | 0% | -2.34 | -3.18 |
+| np:gate:unique buyers | 1 | 100% | +3.95 | +1.37 |
+
+## Gates: shadow cost (single-gate blocks) and reject outcomes
+| Gate | shadow n | shadow P&amp;L $ | rejects n | median +1h | median +6h | median +24h | FN rate (+6h &gt;= +50%) |
+|---|---|---|---|---|---|---|---|
+| unique buyers | 1 | +1.37 | 0 | — | — | — | — |
+| dip: falling knife | 1 | -0.11 | 0 | — | — | — | — |
+| dip: no dip yet | 5 | -1.10 | 0 | — | — | — | — |
+| dip: too deep | 4 | -2.80 | 0 | — | — | — | — |
+| scan: cooldown | 3 | -3.18 | 0 | — | — | — | — |
+| judge: price h1 | 4 | -3.91 | 0 | — | — | — | — |
+
+## Verdicts
+- **Rule that cost the most / rule to cut:** none — no gate has &gt;= 10 shadow trades with positive P&amp;L this window (gates paid for themselves or n too small).
+- **1 rule to add:** none — no researched candidate has passed the walk-forward holdout yet (see CHANGELOG_research.md).
+
+## Ops
+- Turnover: 39 real round trips (84.12 $ bought), 20 shadow, 0 control.
+- Filter health: 73 scan runs; rejects/day 2026-10-20 9176 — ok
+- Overrides (manual edits of risk files / STOP flag): none flagged
+
+## Monthly routine audit
+- Risk-rule enforcement tests (tests/run_all.sh): **OK**
+- Checklist: backups present for every CHANGELOG entry; crontab matches the last backup; no live-money keys; kill switch state file readable.
+</pre>

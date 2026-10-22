@@ -1,0 +1,887 @@
+{
+ "scanned_at": "2026-10-20T23:11:01+02:00",
+ "network": "solana",
+ "source": "geckoterminal + pump.fun/dexscreener extras",
+ "pump_fun_frontend_api": "frontend-api-v3 feeds used as extra candidate source (sources.py)",
+ "gt_calls": 7,
+ "pools_seen": 148,
+ "rejected_by_first_rule": {
+  "liquidity < $5.0k": 26,
+  "curve complete": 10,
+  "cooldown": 8,
+  "quote not SOL": 1,
+  "mcap < $15.0k": 2,
+  "age > 72h": 1,
+  "vol/liq wash": 7,
+  "liquidity < $12.0k": 34,
+  "buys h1 < 10": 1,
+  "age < 15m": 33,
+  "sells > buys m15": 3,
+  "24h vol < $40.0k": 1
+ },
+ "rejected_by_reason": {
+  "liquidity < $5.0k": 60,
+  "24h vol < $20.0k": 32,
+  "mcap < $15.0k": 59,
+  "quote not SOL": 15,
+  "buys h1 < 10": 77,
+  "buys m15 < 2": 73,
+  "stale data": 63,
+  "vol/liq wash": 64,
+  "curve complete": 11,
+  "sells > buys h1": 26,
+  "cooldown": 8,
+  "sells > buys m15": 24,
+  "age > 72h": 1,
+  "liquidity < $12.0k": 34,
+  "mcap < $40.0k": 6,
+  "mcap > $8.00M": 1,
+  "age < 15m": 33,
+  "24h vol < $40.0k": 2,
+  "mcap > $90.0k": 1
+ },
+ "rejected_total": 127,
+ "bonding_curve_liq_derived": 65,
+ "venue_stats": {
+  "bonding_curve": {
+   "evaluated": 80,
+   "passed": 5,
+   "rejected": 75,
+   "gt_liq_zero_or_null": 11,
+   "gt_zero_now_pass_liq": 10,
+   "fail_liq_derived": 48
+  },
+  "pumpswap": {
+   "evaluated": 61,
+   "passed": 9,
+   "rejected": 52,
+   "gt_liq_zero_or_null": 0,
+   "gt_zero_now_pass_liq": 0,
+   "fail_liq_derived": 0
+  }
+ },
+ "errors": [],
+ "rules": {
+  "bonding_curve": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 15000,
+   "mcap_max": 90000,
+   "vol24_min": 20000,
+   "liq_min": 5000,
+   "max_vol24_to_liq": 100
+  },
+  "pumpswap": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 40000,
+   "mcap_max": 8000000,
+   "vol24_min": 40000,
+   "liq_min": 12000,
+   "max_vol24_to_liq": 40
+  },
+  "max_out": 25,
+  "drop_if_sells_gt_buys_in": [
+   "m15",
+   "h1"
+  ],
+  "quote": "SOL only (custom-pair coins dropped)",
+  "min_buys_h1": 10,
+  "min_buys_m15": 2,
+  "curve_complete_sol": 80,
+  "stale": "reject if txns (m15+h1) and mcap unchanged for 3 consecutive scans (current = previous 2)",
+  "stale_scans": 3
+ },
+ "candidates": [
+  {
+   "pool": "8R4KnuMpwSjdBqJFKXyBPX7cZ9rfrY91NCi3myVsjpWY",
+   "name": "Bonnie / SOL",
+   "venue": "pumpswap",
+   "dex": "pumpswap",
+   "base_token": "9bENGzkDkuAJ41gcFKWoJFSAW2q75Fys6g3GFnHxpump",
+   "age_h": 1.73,
+   "liquidity_usd": 34578.16,
+   "liq_derived": false,
+   "gt_reserve_usd": 34578.1573,
+   "curve": null,
+   "vol_h24": 108689.64,
+   "vol_h6": 108689.640826233,
+   "mcap_usd": 176554.740006387,
+   "price_usd": 0.00018091348008625113,
+   "sol_usd": 106.61386286246558,
+   "tx_m15": {
+    "buys": 779,
+    "sells": 253,
+    "buyers": 525,
+    "sellers": 199
+   },
+   "tx_h1": {
+    "buys": 4046,
+    "sells": 2220,
+    "buyers": 1881,
+    "sellers": 1437
+   },
+   "pc_h1": -73.171,
+   "pc_m5": 7.511,
+   "pc_m15": 22.79,
+   "pc_m30": -77.753,
+   "src": [
+    "pf_active",
+    "watchlist"
+   ],
+   "buyers_h1": 1881,
+   "buyers_h6": 2202,
+   "score": 1.7037,
+   "url": "https://www.geckoterminal.com/solana/pools/8R4KnuMpwSjdBqJFKXyBPX7cZ9rfrY91NCi3myVsjpWY",
+   "fail_keys": [],
+   "fails": [],
+   "fp": "[{\"buyers\": 525, \"buys\": 779, \"sellers\": 199, \"sells\": 253}, {\"buyers\": 1881, \"buys\": 4046, \"sellers\": 1437, \"sells\": 2220}, 176554.740006387]",
+   "lead": "L9bENGz",
+   "watch": {
+    "pool": "8R4KnuMpwSjdBqJFKXyBPX7cZ9rfrY91NCi3myVsjpWY",
+    "mint": "9bENGzkDkuAJ41gcFKWoJFSAW2q75Fys6g3GFnHxpump",
+    "name": "Bonnie / SOL",
+    "venue": "pumpswap",
+    "added_at": "2026-10-20T20:33:25+00:00",
+    "expires_at": "2026-10-20T21:33:25+00:00",
+    "highs": [
+     [
+      1792529105,
+      0.0008032508761480232
+     ],
+     [
+      1792528745,
+      0.000799352766254967
+     ],
+     [
+      1792528684,
+      0.000798211779532827
+     ],
+     [
+      1792528984,
+      0.0007973177823397502
+     ],
+     [
+      1792528631,
+      0.0007972133434133042
+     ],
+     [
+      1792528865,
+      0.00079678195387854
+     ],
+     [
+      1792528931,
+      0.0007947977869827618
+     ],
+     [
+      1792528805,
+      0.0007943776774904549
+     ],
+     [
+      1792528805,
+      0.0007931579186727304
+     ],
+     [
+      1792529045,
+      0.0007923904036608862
+     ],
+     [
+      1792528684,
+      0.0007865088088509476
+     ],
+     [
+      1792528505,
+      0.0007864573024558069
+     ],
+     [
+      1792528644,
+      0.0007860709805474704
+     ],
+     [
+      1792528344,
+      0.0007796466918069809
+     ],
+     [
+      1792528745,
+      0.0007788174787646727
+     ],
+     [
+      1792528585,
+      0.0007776744192042438
+     ],
+     [
+      1792528525,
+      0.0007771520839076211
+     ],
+     [
+      1792528384,
+      0.0007754432339031497
+     ],
+     [
+      1792528565,
+      0.0007747405842564441
+     ],
+     [
+      1792528380,
+      0.0007694636188853933
+     ]
+    ],
+    "ohlcv_at": "2026-10-20T20:33:25+00:00",
+    "last_price": 0.0008032508761480232,
+    "last_seen": "2026-10-20T20:45:04+00:00",
+    "last_reason": "watchlist: no dip yet \u2014 pullback 0% from 60-min high (need 12%..40%), m5 +1%",
+    "src": [
+     "watchlist"
+    ]
+   }
+  },
+  {
+   "pool": "8jQuQw7axKnErR1xSWethS3JawiBpGLwuCy4MgHaao2w",
+   "name": "ERC / SOL",
+   "venue": "bonding_curve",
+   "dex": "pump-fun",
+   "base_token": "GGzNLq89NV4d495XC4uwjC2ub6rPdSw1vsRYcibVpump",
+   "age_h": 48.48,
+   "liquidity_usd": 6626.43,
+   "liq_derived": true,
+   "gt_reserve_usd": 8574.4718,
+   "curve": {
+    "virtual_sol": 92.1111,
+    "real_sol": 62.1111,
+    "sol_usd": 106.68677928420924,
+    "virtual_tokens": 349469129,
+    "progress_pct": 73.1,
+    "suspect": false,
+    "complete": false
+   },
+   "vol_h24": 50530.37,
+   "vol_h6": 31581.1270619708,
+   "mcap_usd": 28119.91121,
+   "price_usd": 2.811991120809102e-05,
+   "sol_usd": 106.68677928420924,
+   "tx_m15": {
+    "buys": 63,
+    "sells": 35,
+    "buyers": 50,
+    "sellers": 32
+   },
+   "tx_h1": {
+    "buys": 134,
+    "sells": 63,
+    "buyers": 104,
+    "sellers": 53
+   },
+   "pc_h1": 11.956,
+   "pc_m5": -13.062,
+   "pc_m15": -10.131,
+   "pc_m30": 45.927,
+   "src": [
+    "ds_search_pumpfun"
+   ],
+   "buyers_h1": 104,
+   "buyers_h6": 179,
+   "score": 1.1124,
+   "url": "https://www.geckoterminal.com/solana/pools/8jQuQw7axKnErR1xSWethS3JawiBpGLwuCy4MgHaao2w",
+   "fail_keys": [],
+   "fails": [],
+   "fp": "[{\"buyers\": 50, \"buys\": 63, \"sellers\": 32, \"sells\": 35}, {\"buyers\": 104, \"buys\": 134, \"sellers\": 53, \"sells\": 63}, 28119.91121]",
+   "lead": "LGGzNLq"
+  },
+  {
+   "pool": "6eGhzjpwKLPSD6JFwoWgrhTebm9Eoa9qsCUuXjmzS78v",
+   "name": "McDonald's / SOL",
+   "venue": "pumpswap",
+   "dex": "pumpswap",
+   "base_token": "Yeyg7MW5Pgiaq6hZESHEzfApxZZUowSeRKzvHnnpump",
+   "age_h": 0.87,
+   "liquidity_usd": 33260.4,
+   "liq_derived": false,
+   "gt_reserve_usd": 33260.3994,
+   "curve": null,
+   "vol_h24": 83784.25,
+   "vol_h6": 83784.2460773787,
+   "mcap_usd": 163424.797259407,
+   "price_usd": 0.00016607655304382187,
+   "sol_usd": 106.61388609184085,
+   "tx_m15": {
+    "buys": 389,
+    "sells": 170,
+    "buyers": 109,
+    "sellers": 100
+   },
+   "tx_h1": {
+    "buys": 2625,
+    "sells": 972,
+    "buyers": 880,
+    "sellers": 514
+   },
+   "pc_h1": -50.029,
+   "pc_m5": 10.368,
+   "pc_m15": 30.265,
+   "pc_m30": -8.629,
+   "src": [
+    "pf_active"
+   ],
+   "buyers_h1": 880,
+   "buyers_h6": 880,
+   "score": 0.6937,
+   "url": "https://www.geckoterminal.com/solana/pools/6eGhzjpwKLPSD6JFwoWgrhTebm9Eoa9qsCUuXjmzS78v",
+   "fail_keys": [],
+   "fails": [],
+   "fp": "[{\"buyers\": 109, \"buys\": 389, \"sellers\": 100, \"sells\": 170}, {\"buyers\": 880, \"buys\": 2625, \"sellers\": 514, \"sells\": 972}, 163424.797259407]",
+   "lead": "LYeyg7M"
+  },
+  {
+   "pool": "BYFpqnfqqs2wYZgX3Vxm6V5Hk8PE6FJi62MtyKz5Hp2D",
+   "name": "DUST / SOL",
+   "venue": "pumpswap",
+   "dex": "pumpswap",
+   "base_token": "5org5Hza3TQ3ps5LHYzQfZkJhokHF73AWc1vZZcmpump",
+   "age_h": 19.37,
+   "liquidity_usd": 30724.56,
+   "liq_derived": false,
+   "gt_reserve_usd": 30724.5568,
+   "curve": null,
+   "vol_h24": 663925.81,
+   "vol_h6": 75181.3572227721,
+   "mcap_usd": 129335.9609,
+   "price_usd": 0.00012933596088000787,
+   "sol_usd": 106.6968619647476,
+   "tx_m15": {
+    "buys": 38,
+    "sells": 8,
+    "buyers": 13,
+    "sellers": 8
+   },
+   "tx_h1": {
+    "buys": 194,
+    "sells": 82,
+    "buyers": 83,
+    "sellers": 70
+   },
+   "pc_h1": -15.957,
+   "pc_m5": 0.387,
+   "pc_m15": 6.947,
+   "pc_m30": -5.566,
+   "src": [
+    "ds_boosts_top",
+    "ds_search_pumpswap"
+   ],
+   "buyers_h1": 83,
+   "buyers_h6": 304,
+   "score": 0.6598,
+   "url": "https://www.geckoterminal.com/solana/pools/BYFpqnfqqs2wYZgX3Vxm6V5Hk8PE6FJi62MtyKz5Hp2D",
+   "fail_keys": [],
+   "fails": [],
+   "fp": "[{\"buyers\": 13, \"buys\": 38, \"sellers\": 8, \"sells\": 8}, {\"buyers\": 83, \"buys\": 194, \"sellers\": 70, \"sells\": 82}, 129335.9609]",
+   "lead": "L5org5H"
+  },
+  {
+   "pool": "31cbdBhPLamM85tpFj6XVySwYxCR9fNWhfJKdA7Rtc1c",
+   "name": "TNTCOIN / SOL",
+   "venue": "pumpswap",
+   "dex": "pumpswap",
+   "base_token": "BGsMjz8wobAcpspSE3RvGBhEirngJSmpEsmuzZrkpump",
+   "age_h": 17.52,
+   "liquidity_usd": 26143.15,
+   "liq_derived": false,
+   "gt_reserve_usd": 26143.1458,
+   "curve": null,
+   "vol_h24": 96965.66,
+   "vol_h6": 45382.6333145716,
+   "mcap_usd": 103180.6764,
+   "price_usd": 0.00010295377029938427,
+   "sol_usd": 106.61391084024942,
+   "tx_m15": {
+    "buys": 29,
+    "sells": 27,
+    "buyers": 24,
+    "sellers": 23
+   },
+   "tx_h1": {
+    "buys": 152,
+    "sells": 116,
+    "buyers": 92,
+    "sellers": 92
+   },
+   "pc_h1": -13.087,
+   "pc_m5": -0.221,
+   "pc_m15": -6.792,
+   "pc_m30": -7.146,
+   "src": [
+    "ds_boosts_top",
+    "pf_live"
+   ],
+   "buyers_h1": 92,
+   "buyers_h6": 355,
+   "score": 0.5757,
+   "url": "https://www.geckoterminal.com/solana/pools/31cbdBhPLamM85tpFj6XVySwYxCR9fNWhfJKdA7Rtc1c",
+   "fail_keys": [],
+   "fails": [],
+   "fp": "[{\"buyers\": 24, \"buys\": 29, \"sellers\": 23, \"sells\": 27}, {\"buyers\": 92, \"buys\": 152, \"sellers\": 92, \"sells\": 116}, 103180.6764]",
+   "lead": "LBGsMjz"
+  },
+  {
+   "pool": "2hZxFNjQfunFaAR3zWs5PK9T1enHqR8ZmcUFeYVu8pJH",
+   "name": "CLAVCAT / SOL",
+   "venue": "bonding_curve",
+   "dex": "pump-fun",
+   "base_token": "A1SqomQQjGDXJ7iGciZEwDurbnRo77K1xoGsGvaepump",
+   "age_h": 24.38,
+   "liquidity_usd": 8230.98,
+   "liq_derived": true,
+   "gt_reserve_usd": 9044.6988,
+   "curve": {
+    "virtual_sol": 107.2037,
+    "real_sol": 77.2037,
+    "sol_usd": 106.61381348397123,
+    "virtual_tokens": 300269613,
+    "progress_pct": 90.8,
+    "suspect": false,
+    "complete": false
+   },
+   "vol_h24": 114419.43,
+   "vol_h6": 16985.9564259124,
+   "mcap_usd": 38400.11465,
+   "price_usd": 3.8063759930051095e-05,
+   "sol_usd": 106.61381348397123,
+   "tx_m15": {
+    "buys": 40,
+    "sells": 24,
+    "buyers": 35,
+    "sellers": 20
+   },
+   "tx_h1": {
+    "buys": 95,
+    "sells": 53,
+    "buyers": 65,
+    "sellers": 42
+   },
+   "pc_h1": 90.478,
+   "pc_m5": 12.246,
+   "pc_m15": 22.604,
+   "pc_m30": 46.912,
+   "src": [
+    "ds_search_pumpfun"
+   ],
+   "buyers_h1": 65,
+   "buyers_h6": 112,
+   "score": 0.5664,
+   "url": "https://www.geckoterminal.com/solana/pools/2hZxFNjQfunFaAR3zWs5PK9T1enHqR8ZmcUFeYVu8pJH",
+   "fail_keys": [],
+   "fails": [],
+   "fp": "[{\"buyers\": 35, \"buys\": 40, \"sellers\": 20, \"sells\": 24}, {\"buyers\": 65, \"buys\": 95, \"sellers\": 42, \"sells\": 53}, 38400.11465]",
+   "lead": "LA1Sqom"
+  },
+  {
+   "pool": "GS1bQcY4W3ScfJMo5Ch9c1xggBUqNpvjoWY7Yc7pJGdL",
+   "name": "MONEYBIZ / SOL",
+   "venue": "pumpswap",
+   "dex": "pumpswap",
+   "base_token": "EHPugw1ghE46BeySAa7cHvoZHwYometbp1aK1Q7jpump",
+   "age_h": 8.05,
+   "liquidity_usd": 114712.49,
+   "liq_derived": false,
+   "gt_reserve_usd": 114712.4901,
+   "curve": null,
+   "vol_h24": 2721104.11,
+   "vol_h6": 1211687.22218383,
+   "mcap_usd": 1555033.68064743,
+   "price_usd": 0.0015672898480463436,
+   "sol_usd": 106.61388609184085,
+   "tx_m15": {
+    "buys": 2189,
+    "sells": 726,
+    "buyers": 622,
+    "sellers": 391
+   },
+   "tx_h1": {
+    "buys": 8551,
+    "sells": 2833,
+    "buyers": 1685,
+    "sellers": 1071
+   },
+   "pc_h1": 19.627,
+   "pc_m5": 5.048,
+   "pc_m15": 13.439,
+   "pc_m30": 9.835,
+   "src": [
+    "ds_boosts_top",
+    "ds_search_pumpswap",
+    "pf_active"
+   ],
+   "buyers_h1": 1685,
+   "buyers_h6": 7987,
+   "score": 0.0563,
+   "url": "https://www.geckoterminal.com/solana/pools/GS1bQcY4W3ScfJMo5Ch9c1xggBUqNpvjoWY7Yc7pJGdL",
+   "fail_keys": [],
+   "fails": [],
+   "fp": "[{\"buyers\": 622, \"buys\": 2189, \"sellers\": 391, \"sells\": 726}, {\"buyers\": 1685, \"buys\": 8551, \"sellers\": 1071, \"sells\": 2833}, 1555033.68064743]",
+   "lead": "LEHPugw"
+  },
+  {
+   "pool": "46gTBAw39NQops2miKGoMVhSmDj6yf9Z5Fk9xtpCqfu3",
+   "name": "pika / SOL",
+   "venue": "pumpswap",
+   "dex": "pumpswap",
+   "base_token": "7XBdVqzZFYwpBz7VshzWZWd7ms1sG9f9UQ8YiHqapump",
+   "age_h": 7.54,
+   "liquidity_usd": 24538.19,
+   "liq_derived": false,
+   "gt_reserve_usd": 24538.1919,
+   "curve": null,
+   "vol_h24": 364374.8,
+   "vol_h6": 223845.487255859,
+   "mcap_usd": 85432.9056,
+   "price_usd": 8.740616877526625e-05,
+   "sol_usd": 106.68031921049787,
+   "tx_m15": {
+    "buys": 119,
+    "sells": 66,
+    "buyers": 117,
+    "sellers": 66
+   },
+   "tx_h1": {
+    "buys": 456,
+    "sells": 272,
+    "buyers": 421,
+    "sellers": 263
+   },
+   "pc_h1": -4.479,
+   "pc_m5": -2.968,
+   "pc_m15": -4.243,
+   "pc_m30": -6.169,
+   "src": [
+    "ds_boosts_top",
+    "ds_search_pumpswap"
+   ],
+   "buyers_h1": 421,
+   "buyers_h6": 2975,
+   "score": -0.1174,
+   "url": "https://www.geckoterminal.com/solana/pools/46gTBAw39NQops2miKGoMVhSmDj6yf9Z5Fk9xtpCqfu3",
+   "fail_keys": [],
+   "fails": [],
+   "fp": "[{\"buyers\": 117, \"buys\": 119, \"sellers\": 66, \"sells\": 66}, {\"buyers\": 421, \"buys\": 456, \"sellers\": 263, \"sells\": 272}, 85432.9056]",
+   "lead": "L7XBdVq"
+  },
+  {
+   "pool": "CswF7skBcCBnpB7x8fAkKGnJAFbzvJF1SA9Q5ixwYeom",
+   "name": "IOF / SOL",
+   "venue": "pumpswap",
+   "dex": "pumpswap",
+   "base_token": "FdYcdzrJjMq5EmfTHFxmtb8WS48QzQQbb65zJJZtpump",
+   "age_h": 1.37,
+   "liquidity_usd": 209866.6,
+   "liq_derived": false,
+   "gt_reserve_usd": 209866.6043,
+   "curve": null,
+   "vol_h24": 127167.61,
+   "vol_h6": 127167.613316907,
+   "mcap_usd": 5962885.22777805,
+   "price_usd": 0.005963483469379575,
+   "sol_usd": 106.61386286246558,
+   "tx_m15": {
+    "buys": 228,
+    "sells": 77,
+    "buyers": 10,
+    "sellers": 9
+   },
+   "tx_h1": {
+    "buys": 906,
+    "sells": 304,
+    "buyers": 18,
+    "sellers": 12
+   },
+   "pc_h1": 8.238,
+   "pc_m5": 1.465,
+   "pc_m15": 2.871,
+   "pc_m30": 4.404,
+   "src": [
+    "pf_active2"
+   ],
+   "buyers_h1": 18,
+   "buyers_h6": 31,
+   "score": -0.2937,
+   "url": "https://www.geckoterminal.com/solana/pools/CswF7skBcCBnpB7x8fAkKGnJAFbzvJF1SA9Q5ixwYeom",
+   "fail_keys": [],
+   "fails": [],
+   "fp": "[{\"buyers\": 10, \"buys\": 228, \"sellers\": 9, \"sells\": 77}, {\"buyers\": 18, \"buys\": 906, \"sellers\": 12, \"sells\": 304}, 5962885.22777805]",
+   "lead": "LFdYcdz"
+  },
+  {
+   "pool": "EvdxxQA1TPuANNW2EMMHsJ36G9QumjHHCL8nui9SADxp",
+   "name": "ENERGY / SOL",
+   "venue": "pumpswap",
+   "dex": "pumpswap",
+   "base_token": "CicoFLHq5c3n6w61e68WfnooFWUzTLisp3a2HdiWpump",
+   "age_h": 1.63,
+   "liquidity_usd": 48690.03,
+   "liq_derived": false,
+   "gt_reserve_usd": 48690.0258,
+   "curve": null,
+   "vol_h24": 1679017.83,
+   "vol_h6": 1679017.82968451,
+   "mcap_usd": 280530.240152633,
+   "price_usd": 0.00027948989628595746,
+   "sol_usd": 106.61388702888773,
+   "tx_m15": {
+    "buys": 2338,
+    "sells": 1978,
+    "buyers": 1153,
+    "sellers": 1071
+   },
+   "tx_h1": {
+    "buys": 10554,
+    "sells": 8561,
+    "buyers": 3754,
+    "sellers": 2884
+   },
+   "pc_h1": 171.775,
+   "pc_m5": 55.626,
+   "pc_m15": -17.599,
+   "pc_m30": 47.363,
+   "src": [
+    "ds_search_pumpswap",
+    "pf_active"
+   ],
+   "buyers_h1": 3754,
+   "buyers_h6": 5024,
+   "score": -0.8024,
+   "url": "https://www.geckoterminal.com/solana/pools/EvdxxQA1TPuANNW2EMMHsJ36G9QumjHHCL8nui9SADxp",
+   "fail_keys": [],
+   "fails": [],
+   "fp": "[{\"buyers\": 1153, \"buys\": 2338, \"sellers\": 1071, \"sells\": 1978}, {\"buyers\": 3754, \"buys\": 10554, \"sellers\": 2884, \"sells\": 8561}, 280530.240152633]",
+   "lead": "LCicoFL"
+  },
+  {
+   "pool": "2ZpbqiLVN39tLmeRoky3AB5CtQN52n8uQP5bCtrU32JU",
+   "name": "PVE / SOL",
+   "venue": "pumpswap",
+   "dex": "pumpswap",
+   "base_token": "7o6wH9NcVHBSzvXMaiTecm2oGkN2jVJX3S57NvbJpump",
+   "age_h": 2.16,
+   "liquidity_usd": 25834.41,
+   "liq_derived": false,
+   "gt_reserve_usd": 25834.4138,
+   "curve": null,
+   "vol_h24": 237033.12,
+   "vol_h6": 237033.117038685,
+   "mcap_usd": 105583.52115798,
+   "price_usd": 9.160699832793421e-05,
+   "sol_usd": 106.61388609184085,
+   "tx_m15": {
+    "buys": 74,
+    "sells": 39,
+    "buyers": 55,
+    "sellers": 33
+   },
+   "tx_h1": {
+    "buys": 165,
+    "sells": 143,
+    "buyers": 93,
+    "sellers": 105
+   },
+   "pc_h1": -15.826,
+   "pc_m5": 47.872,
+   "pc_m15": 62.273,
+   "pc_m30": 73.446,
+   "src": [
+    "ds_profiles"
+   ],
+   "buyers_h1": 93,
+   "buyers_h6": 592,
+   "score": -0.8998,
+   "url": "https://www.geckoterminal.com/solana/pools/2ZpbqiLVN39tLmeRoky3AB5CtQN52n8uQP5bCtrU32JU",
+   "fail_keys": [],
+   "fails": [],
+   "fp": "[{\"buyers\": 55, \"buys\": 74, \"sellers\": 33, \"sells\": 39}, {\"buyers\": 93, \"buys\": 165, \"sellers\": 105, \"sells\": 143}, 105583.52115798]",
+   "lead": "L7o6wH9"
+  },
+  {
+   "pool": "Bjmr975ctq9zguLXh8mic5EULvSRobdcsoFXjLKHzt4e",
+   "name": "ACC / SOL",
+   "venue": "bonding_curve",
+   "dex": "pump-fun",
+   "base_token": "HsycKzaBd3UEsspJ6VuuoXmYET4z7nc3krCPYFtZpump",
+   "age_h": 0.48,
+   "liquidity_usd": 5375.67,
+   "liq_derived": true,
+   "gt_reserve_usd": 7880.8272,
+   "curve": {
+    "virtual_sol": 80.4219,
+    "real_sol": 50.4219,
+    "sol_usd": 106.61388609184085,
+    "virtual_tokens": 400264163,
+    "progress_pct": 59.3,
+    "suspect": false,
+    "complete": false
+   },
+   "vol_h24": 68059.94,
+   "vol_h6": 68059.9443695886,
+   "mcap_usd": 20837.8458126865,
+   "price_usd": 2.1421078561688385e-05,
+   "sol_usd": 106.61388609184085,
+   "tx_m15": {
+    "buys": 105,
+    "sells": 60,
+    "buyers": 68,
+    "sellers": 50
+   },
+   "tx_h1": {
+    "buys": 796,
+    "sells": 519,
+    "buyers": 423,
+    "sellers": 308
+   },
+   "pc_h1": 228.993,
+   "pc_m5": 14.766,
+   "pc_m15": 43.564,
+   "pc_m30": 228.993,
+   "src": [
+    "ds_profiles",
+    "ds_search_pumpfun"
+   ],
+   "buyers_h1": 423,
+   "buyers_h6": 423,
+   "score": -1.1909,
+   "url": "https://www.geckoterminal.com/solana/pools/Bjmr975ctq9zguLXh8mic5EULvSRobdcsoFXjLKHzt4e",
+   "fail_keys": [],
+   "fails": [],
+   "fp": "[{\"buyers\": 68, \"buys\": 105, \"sellers\": 50, \"sells\": 60}, {\"buyers\": 423, \"buys\": 796, \"sellers\": 308, \"sells\": 519}, 20837.8458126865]",
+   "lead": "LHsycKz"
+  },
+  {
+   "pool": "EVGW6mEmGDM2fHvZAerJ2JdxgeeGxY4kg2VNdNGxhUpk",
+   "name": "Xingxing / SOL",
+   "venue": "bonding_curve",
+   "dex": "pump-fun",
+   "base_token": "Bm2LuKR7U96uc3CDV4xGYR5XJH1JaKZPW7MNXWq3pump",
+   "age_h": 0.95,
+   "liquidity_usd": 5176.62,
+   "liq_derived": true,
+   "gt_reserve_usd": 7828.9882,
+   "curve": {
+    "virtual_sol": 78.5246,
+    "real_sol": 48.5246,
+    "sol_usd": 106.68031981291028,
+    "virtual_tokens": 409935344,
+    "progress_pct": 57.1,
+    "suspect": false,
+    "complete": false
+   },
+   "vol_h24": 39473.75,
+   "vol_h6": 39473.7516587988,
+   "mcap_usd": 20434.99604,
+   "price_usd": 2.0434996044473623e-05,
+   "sol_usd": 106.68031981291028,
+   "tx_m15": {
+    "buys": 45,
+    "sells": 21,
+    "buyers": 30,
+    "sellers": 16
+   },
+   "tx_h1": {
+    "buys": 421,
+    "sells": 297,
+    "buyers": 184,
+    "sellers": 142
+   },
+   "pc_h1": 337.648,
+   "pc_m5": 4.412,
+   "pc_m15": 30.672,
+   "pc_m30": 53.478,
+   "src": [
+    "ds_search_pumpfun"
+   ],
+   "buyers_h1": 184,
+   "buyers_h6": 184,
+   "score": -1.4762,
+   "url": "https://www.geckoterminal.com/solana/pools/EVGW6mEmGDM2fHvZAerJ2JdxgeeGxY4kg2VNdNGxhUpk",
+   "fail_keys": [],
+   "fails": [],
+   "fp": "[{\"buyers\": 30, \"buys\": 45, \"sellers\": 16, \"sells\": 21}, {\"buyers\": 184, \"buys\": 421, \"sellers\": 142, \"sells\": 297}, 20434.99604]",
+   "lead": "LBm2LuK"
+  },
+  {
+   "pool": "CALV5nB7kerWbdVKxgdUaZ6ABEov9GcNWz7rHdDvqmzs",
+   "name": "Sun / SOL",
+   "venue": "bonding_curve",
+   "dex": "pump-fun",
+   "base_token": "Ci8fSR6gqN4AFGem4o4SZU7rRtp1BG3MgaTE4HdJpump",
+   "age_h": 0.48,
+   "liquidity_usd": 6850.26,
+   "liq_derived": true,
+   "gt_reserve_usd": 8631.8033,
+   "curve": {
+    "virtual_sol": 94.253,
+    "real_sol": 64.253,
+    "sol_usd": 106.61388609184085,
+    "virtual_tokens": 341527573,
+    "progress_pct": 75.6,
+    "suspect": false,
+    "complete": false
+   },
+   "vol_h24": 115041.72,
+   "vol_h6": 115041.722074193,
+   "mcap_usd": 29399.63234,
+   "price_usd": 2.94227462181446e-05,
+   "sol_usd": 106.61388609184085,
+   "tx_m15": {
+    "buys": 489,
+    "sells": 390,
+    "buyers": 266,
+    "sellers": 240
+   },
+   "tx_h1": {
+    "buys": 1758,
+    "sells": 1263,
+    "buyers": 916,
+    "sellers": 684
+   },
+   "pc_h1": 861.093,
+   "pc_m5": 14.04,
+   "pc_m15": 53.689,
+   "pc_m30": 861.093,
+   "src": [
+    "ds_boosts",
+    "ds_profiles",
+    "ds_search_pumpfun",
+    "pf_active"
+   ],
+   "buyers_h1": 916,
+   "buyers_h6": 916,
+   "score": -2.2629,
+   "url": "https://www.geckoterminal.com/solana/pools/CALV5nB7kerWbdVKxgdUaZ6ABEov9GcNWz7rHdDvqmzs",
+   "fail_keys": [],
+   "fails": [],
+   "fp": "[{\"buyers\": 266, \"buys\": 489, \"sellers\": 240, \"sells\": 390}, {\"buyers\": 916, \"buys\": 1758, \"sellers\": 684, \"sells\": 1263}, 29399.63234]",
+   "lead": "LCi8fSR"
+  }
+ ],
+ "sources": {
+  "geckoterminal_pools": 120,
+  "wallet_signal_mints": 2,
+  "pf_live": 50,
+  "pf_active": 50,
+  "pf_active2": 50,
+  "pf_curve_top": 50,
+  "ds_profiles": 23,
+  "ds_boosts": 20,
+  "ds_boosts_top": 20,
+  "ds_search_pumpswap": 30,
+  "ds_search_pumpfun": 30,
+  "ds_token_calls": 2,
+  "extra_mints": 90,
+  "prefilter_dropped": 62,
+  "prefilter_kept": 28,
+  "extra_requested": 28,
+  "extra_returned": 28,
+  "extra_gt_calls": 1,
+  "extra_pools_added": 28,
+  "wallet_signal_matched": 0
+ },
+ "cooldown_active": 31,
+ "cooldown_rejected": 8,
+ "watchlist_size": 2,
+ "run_id": "20261020T231101"
+}
