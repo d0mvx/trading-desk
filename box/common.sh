@@ -6,7 +6,12 @@ SYNC="${DESK_SYNC_DIR:-$HOME/.desk-sync}"          # dedicated clones: $SYNC/mai
 URL="https://github.com/$REPO.git"
 PY="$DESK/venv/bin/python"; [ -x "$PY" ] || PY=python3
 ts() { date '+%Y-%m-%d %H:%M:%S %Z'; }
-need_token() { [ -n "${GITHUB_TOKEN:-}" ] || { echo "GITHUB_TOKEN not set" >&2; exit 2; }; }
+need_token() {
+  [ -n "${GITHUB_TOKEN:-}" ] || { echo "GITHUB_TOKEN not set" >&2; exit 2; }
+  # same one-shot helper for git processes started by python (state_sync.py): env-only git config, nothing on disk
+  export GIT_TERMINAL_PROMPT=0 GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=credential.helper GIT_CONFIG_VALUE_0= \
+         GIT_CONFIG_KEY_1=credential.helper GIT_CONFIG_VALUE_1='!f() { echo username=x-access-token; echo "password=$GITHUB_TOKEN"; }; f'
+}
 # git with the token passed through a one-shot credential helper (reads the env var; nothing stored in .git/config)
 g() { git -c credential.helper= -c credential.helper='!f() { echo username=x-access-token; echo "password=$GITHUB_TOKEN"; }; f' "$@"; }
 api() {  # api METHOD PATH [JSON]  -> body on stdout

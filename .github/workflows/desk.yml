@@ -77,6 +77,16 @@ jobs:
           # no secret FILES on the runner: scripts read ALPACA_KEY/ALPACA_SECRET/SEC_USER_AGENT/HERENOW_* from env
           for f in alpaca.env sec.env dash_token herenow_site.json; do test ! -e "$HOME/.desk/$f"; done
 
+      - name: Verify GITHUB_TOKEN write access (contents -> state commits, actions -> self-dispatch)
+        if: steps.gate.outputs.live == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git -C state push --dry-run origin HEAD:state && echo "contents:write ok"
+          # idempotent no-op that requires actions:write (workflow is already enabled)
+          if gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/desk.yml/enable" >/dev/null; then echo "actions:write ok"
+          else echo "::error::actions:write missing -> handover self-dispatch will fail; only the 6-h schedule restarts the desk"; fi
+
       - name: Tests (risk rules) must pass before trading
         if: steps.gate.outputs.live == 'true'
         working-directory: desk
