@@ -1,0 +1,125 @@
+{
+ "scanned_at": "2026-10-24T00:12:00+02:00",
+ "network": "solana",
+ "source": "dexscreener (+GT m15/buyers)",
+ "pump_fun_frontend_api": "frontend-api-v3 feeds used as extra candidate source (sources.py)",
+ "gt_calls": 0,
+ "pools_seen": 107,
+ "rejected_by_first_rule": {
+  "buys m15 < 2": 31,
+  "mcap > $8.00M": 2,
+  "cooldown": 7,
+  "age > 72h": 15,
+  "liquidity < $5.0k": 28,
+  "age < 15m": 9,
+  "mcap < $40.0k": 3,
+  "liquidity < $12.0k": 11,
+  "curve complete": 1
+ },
+ "rejected_by_reason": {
+  "buys m15 < 2": 107,
+  "vol/liq wash": 22,
+  "mcap > $8.00M": 4,
+  "sells > buys h1": 28,
+  "cooldown": 7,
+  "age > 72h": 16,
+  "liquidity < $5.0k": 39,
+  "age < 15m": 9,
+  "mcap < $15.0k": 35,
+  "buys h1 < 10": 23,
+  "24h vol < $20.0k": 10,
+  "mcap < $40.0k": 18,
+  "liquidity < $12.0k": 15,
+  "curve complete": 1,
+  "stale data": 24,
+  "24h vol < $40.0k": 8
+ },
+ "rejected_total": 107,
+ "bonding_curve_liq_derived": 43,
+ "venue_stats": {
+  "pumpswap": {
+   "evaluated": 64,
+   "passed": 0,
+   "rejected": 64,
+   "gt_liq_zero_or_null": 0,
+   "gt_zero_now_pass_liq": 0,
+   "fail_liq_derived": 0
+  },
+  "bonding_curve": {
+   "evaluated": 43,
+   "passed": 0,
+   "rejected": 43,
+   "gt_liq_zero_or_null": 43,
+   "gt_zero_now_pass_liq": 4,
+   "fail_liq_derived": 39
+  }
+ },
+ "errors": [
+  "gt enrich: ReadTimeout HTTPSConnectionPool(host='api.geckoterminal.com', port=443):"
+ ],
+ "rules": {
+  "bonding_curve": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 15000,
+   "mcap_max": 90000,
+   "vol24_min": 20000,
+   "liq_min": 5000,
+   "max_vol24_to_liq": 100
+  },
+  "pumpswap": {
+   "age_min_h": 0.25,
+   "age_max_h": 72,
+   "mcap_min": 40000,
+   "mcap_max": 8000000,
+   "vol24_min": 40000,
+   "liq_min": 12000,
+   "max_vol24_to_liq": 40
+  },
+  "max_out": 25,
+  "drop_if_sells_gt_buys_in": [
+   "m15",
+   "h1"
+  ],
+  "quote": "SOL only (custom-pair coins dropped)",
+  "min_buys_h1": 10,
+  "min_buys_m15": 2,
+  "curve_complete_sol": 80,
+  "stale": "reject if txns (m15+h1) and mcap unchanged for 3 consecutive scans (current = previous 2)",
+  "stale_scans": 3
+ },
+ "candidates": [],
+ "sources": {
+  "wallet_signal_mints": 0,
+  "pf_live": 50,
+  "pf_active": 50,
+  "pf_active2": 50,
+  "pf_curve_top": 50,
+  "pf_active_grad": 50,
+  "pf_active_grad2": 50,
+  "ds_profiles": 26,
+  "ds_boosts": 23,
+  "ds_boosts_top": 22,
+  "ds_ads": 26,
+  "ds_cto": 8,
+  "ds_search_pumpswap": 30,
+  "ds_search_pumpfun": 30,
+  "ds_token_calls": 3,
+  "ds_mints": 139,
+  "ds_pairs": 107,
+  "pf_only_unindexed": 0,
+  "ds_no_created_at": 0,
+  "gt_enrich_wanted": 22,
+  "gt_enrich_pf_only_wanted": 0,
+  "gt_enrich_requested": 22,
+  "gt_enriched": 0,
+  "gt_pf_only_added": 0,
+  "gt_enrich_calls": 0,
+  "dexscreener_pools": 107,
+  "wallet_signal_matched": 0
+ },
+ "cooldown_active": 20,
+ "cooldown_rejected": 7,
+ "watchlist_size": 0,
+ "run_id": "20261024T001200"
+}
