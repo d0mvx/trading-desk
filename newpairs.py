@@ -36,7 +36,7 @@ INIT_REAL_TOKENS = 793_100_000 * 10**6; TOTAL_SUPPLY_UI = 1_000_000_000
 TICKET_PCT = 0.015; NP_MAX_OPEN = 3; TOTAL_MAX_OPEN = 8   # 2026-10-21 user order: more trades
 EXIT_TIERS = {   # gains relative to entry fill; tp fractions are of the INITIAL qty
  # USER ORDER 2026-10-24 01:24 (Dominic): both tiers use the main regime (meme.EXIT_REGIME): TP1 +30% 1/3, TP2 +60% 1/3, last 1/3
- # runs; after any TP a FIXED stop at entry -20%; no trailing (the old trail/trail_tight/trail_after_time_stop and the STRONG
+ # runs (TP3 2x: half of the rest, then trail -50% from peak - 01:48 order); after any TP a FIXED stop at entry -20%; no other trailing (the old trail/trail_tight/trail_after_time_stop and the STRONG
  # +100%/+300% ladder with a 35% trail are removed). Initial stop 0.30 (open_position). Time stops/max hold unchanged.
  "normal": {"tier": "normal", "regime": None, "tp": None, "post_tp_stop": None, "time_stop_min": 30, "time_stop_only_if_not_profit": True, "max_hold_min": 720},
  "strong": {"tier": "strong", "regime": None, "tp": None, "post_tp_stop": None, "time_stop_min": 180, "time_stop_only_if_not_profit": True, "max_hold_min": 720}}

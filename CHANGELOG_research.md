@@ -259,6 +259,32 @@ Revert recipe (generic): `cp -p ~/.desk/<backup>/<file> ~/.desk/<file>` for each
 - **Tests:** tests/test_bank_reset_1sol_eur.py (6). `pytest tests --ignore=tests/backtest`: 119 passed.
 - **Revert:** ~/.desk/backup_20261023_1920_bank_reset_1sol/ (bank_reset.py, dashboard files, manifest, crontab).
 
+## 2026-10-24 01:48 — USER ORDER (Dominic, steering on the 01:24/01:25 rebuild): TP3 at 2x + 50% runner trail — regime `2026-10-24_0148_tp30_60_100_trail50`
+Order: "add TP3 at 2x (+100% from entry): sell 50% of the REMAINING position (~1/6 of the original). After TP3, the rest uses a trailing
+stop of 50% below the peak (stop = max(entry -20% fixed stop, peak x 0.5)). Between TP1/TP2 and TP3 the fixed entry -20% stop stays
+(no trailing until 2x). The volume-collapse/fast exit still applies, but after TP3 it should be lenient so the 50% trail governs the
+runner unless the data clearly shows a volume-death exit is better. Configurable."
+- meme.py: `EXIT_TP_LADDER = [[0.30, 1/3], [0.60, 1/3], [1.00, 0.50, "rem"]]` ("rem" = fraction of the qty left at that level; normal
+  path sells 1/3 + 1/3 + 1/6 = 5/6 of initial, 1/6 runs). `EXIT_RUNNER_TRAIL = 0.50`, `EXIT_RUNNER_TRAIL_AFTER = 1.00`:
+  `stop_level` returns max(entry x 0.80, peak x 0.50) ("trail after TP3") once TP3 is hit, otherwise unchanged (initial stop before
+  any TP, fixed entry -20% after TP1/TP2). `EXIT_VC_AFTER_TP3 = False`: volume collapse skipped after TP3; liquidity pull, no-data,
+  safety and the time exits still apply. Plans carry `runner_trail` / `runner_trail_after` (main, new pairs normal/strong, shadow).
+- Migration (regime string bumped, so positions already on 0124_tp30_60_fix20 migrate again, idempotently): TP1/TP2 hits from the
+  sold fraction of initial as before; TP3 counts as hit (no second sale, trail armed) only if the old plan already sold at +100%
+  (legacy +100% partial). Otherwise TP3 sells half of what is left at the next mark >= 2x.
+- Calibration (same in-sample sim, 1m bars, gross, ticket units; GT fetch now 1201 trades: 154 real + 1047 shadow):
+  old regime (no TP3) 7.64 -> with TP3 + trail 16.86 (no VC) -> with VC 0.10/+10%/10min/$5k 21.40. VC after TP3 on vs off: 21.40 vs
+  21.40 (identical; with looser VC variants differences <= 0.1) -> no evidence a volume-death exit beats the trail -> off after TP3.
+  Chosen VC on 1201 trades: cut 75, loss blocked 5.99, gain lost 1.46, net +4.54 (real +1.29, shadow +3.25); 11 cut trades later
+  touched 2x, in 0 of them the baseline kept > +50%. Placeholder VC 0.25/0/5/$1k: net -2.69 (38 later-2x cut) - rejected.
+- Main 60-min time stop (kept per order, flagged): fired 581x in the TP3 sim; 89 of those later reached 2x; without time stop +35.86
+  tickets in-sample (52.71 vs 16.86, but 357 trades then end at the data horizon mark-to-market - optimistic). Decision is Dominic's.
+- Tests: tests/test_exit_regime.py (TP3 half of rest, trail follows peak, floor = fixed stop, gap through all 3 levels = 5/6, VC off
+  after TP3 + toggle, liquidity pull still on, migration of legacy 75%-sold and of previous-regime positions, marker `trailing` field).
+- Dashboard: next-TP shows "50 % des Rests", trailing stop line/status "TP3 · trailing runner", RISK/NP/savip texts.
+- Revert: drop the third `EXIT_TP_LADDER` level (no TP3 hit -> the trail never arms; behaves like 0124_tp30_60_fix20) and bump
+  `EXIT_REGIME`.
+
 ## 2026-10-24 01:24 + 01:25 — USER ORDER (Dominic): exit regime `2026-10-24_0124_tp30_60_fix20` + fast exits (meme main, new pairs, shadow)
 - **Exit rules (meme.py `EXIT_TP_LADDER`, `EXIT_POST_TP_STOP`, `exit_decision`):** TP1 +30 % sells 1/3 of the INITIAL qty, TP2 +60 % another
   1/3, the last 1/3 runs. Gap through both in one check -> 2/3 at once, never sold twice. After any TP: FIXED stop at entry −20 %

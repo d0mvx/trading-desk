@@ -52,10 +52,17 @@ TIME_STOP_MIN = 60        # main: close all 60 min after entry (also in profit -
 # Once any TP hit: NO trailing stop; FIXED stop at entry fill x (1 - EXIT_POST_TP_STOP) for the rest. Before any TP the initial
 # stop (STOP_LOSS / new pairs 0.30) applies. The 2026-10-23 profit lock (+15% -> +5%) and every trailing stop are REMOVED.
 # Not learner-tunable (meme.EXIT* / meme.STOP_LOSS / meme.TIME_STOP are FORBIDDEN_PREFIXES in learner.py).
-EXIT_REGIME = "2026-10-24_0124_tp30_60_fix20"            # regime marker: on every position (exit_regime), trade record + logs/exit_regime.jsonl
-EXIT_REGIME_SINCE = "2026-10-24T01:24:00+02:00"
-EXIT_TP_LADDER = [[0.30, 1 / 3], [0.60, 1 / 3]]          # [gain vs entry fill, fraction of INITIAL qty]; cumulative, no double selling
+# USER ORDER 2026-10-24 01:48 (Dominic): + TP3 at 2x (+100%) sells 50% of the REMAINING qty (~1/6 of initial); only AFTER TP3 the
+# rest gets a trailing stop 50% below the peak: stop = max(entry x 0.80, peak x 0.50). Between TP1/TP2 and TP3 the fixed -20% stays.
+EXIT_REGIME = "2026-10-24_0148_tp30_60_100_trail50"       # regime marker: on every position (exit_regime), trade record + logs/exit_regime.jsonl
+EXIT_REGIME_SINCE = "2026-10-24T01:48:00+02:00"           # (previous regime 2026-10-24_0124_tp30_60_fix20 was live on f122ddd)
+EXIT_TP_LADDER = [[0.30, 1 / 3], [0.60, 1 / 3], [1.00, 0.50, "rem"]]   # [gain vs entry fill, fraction of INITIAL qty] (cumulative, no
+                                                         # double selling); third field "rem" = fraction of the qty REMAINING at that level
 EXIT_POST_TP_STOP = 0.20                                 # after any TP: fixed stop at entry x 0.80
+EXIT_RUNNER_TRAIL_AFTER = 1.00                           # the runner trail arms once the TP at this level (TP3, 2x) is hit ...
+EXIT_RUNNER_TRAIL = 0.50                                 # ... stop = max(entry x (1 - EXIT_POST_TP_STOP), peak x (1 - 0.50))
+EXIT_VC_AFTER_TP3 = False                                # volume-collapse exit after TP3: off (lenient; the 50% trail governs the runner).
+                                                         # In-sample 2026-10-24 (1201 trades): on vs off after TP3 = identical (21.40 tickets)
 # ===== USER ORDER 2026-10-24 01:25 (Dominic) "schneller reagieren" - FAST EXITS (evaluated on every fast check, see RISK_*) =====
 # volume collapse: DexScreener m5 volume vs the trailing hour (h1/12 per 5 min) collapses AND price is weak -> close all.
 # Calibrated 2026-10-24 on GT 1m candles of all real + shadow trades (in-sample), see CHANGELOG_research.md.
@@ -73,6 +80,7 @@ EXIT_NODATA_HAIRCUT = 0.10    # ... SIMULATED at last known mark x 0.90 (assumpt
 # >= I18_BLOCK_SHARE. Fail-open: timeout/missing data never block (logged). V-01 fresh count is shadow-only.
 I18_GATE_ENABLED = True; I18_BLOCK_SHARE = 0.50; I18_MIN_BUYS = 5; PICK_SHADOW_TIMEOUT_S = 6   # min buys = OOS sample rule
 MAIN_EXIT = {"tier": "main", "regime": EXIT_REGIME, "tp": EXIT_TP_LADDER, "post_tp_stop": EXIT_POST_TP_STOP,
+             "runner_trail": EXIT_RUNNER_TRAIL, "runner_trail_after": EXIT_RUNNER_TRAIL_AFTER,
              "time_stop_min": TIME_STOP_MIN, "time_stop_only_if_not_profit": False, "max_hold_min": None}
 # 2026-10-20 19:5x (upgrade 1): fast exits. cron starts `meme.py risk` every minute (flock -n .risk.lock, timeout 58); it runs
 # RISK_CHECKS checks RISK_STEP_S apart (0/4/8/../52 s), never starts one after RISK_LAST_START_S, SIGALRM hard stop at RISK_HARD_S.
@@ -395,11 +403,15 @@ def regime_plan(old=None):
     if not old: return dict(MAIN_EXIT)
     if old.get("regime") == EXIT_REGIME: return old
     keep = {k: old[k] for k in ("tier", "time_stop_min", "time_stop_only_if_not_profit", "max_hold_min") if k in old}
-    return {**keep, "regime": EXIT_REGIME, "tp": [list(x) for x in EXIT_TP_LADDER], "post_tp_stop": EXIT_POST_TP_STOP}
+    return {**keep, "regime": EXIT_REGIME, "tp": [list(x) for x in EXIT_TP_LADDER], "post_tp_stop": EXIT_POST_TP_STOP,
+            "runner_trail": EXIT_RUNNER_TRAIL, "runner_trail_after": EXIT_RUNNER_TRAIL_AFTER}
 
 def _cum(ladder):
+    """(level, cumulative fraction of initial) for the leading fraction-of-INITIAL levels (stops at the first "rem" level)."""
     out, c = [], 0.0
-    for lvl, f in ladder: c += f; out.append((lvl, c))
+    for x in ladder:
+        if len(x) > 2 and x[2] == "rem": break
+        c += x[1]; out.append((x[0], c))
     return out
 
 def migrate_exit(o, t=None):
@@ -413,6 +425,12 @@ def migrate_exit(o, t=None):
     ladder = (o.get("exit") or MAIN_EXIT)["tp"]
     qi = o["qty_initial"] or o["qty"]; sold = max(0.0, 1 - o["qty"] / qi) if qi else 0.0
     o["tp_hits"] = [round(lvl, 2) for lvl, c in _cum(ladder) if c <= sold + 1e-6]
+    # "rem" levels (TP3 2x) cannot be derived from the sold fraction: hit if the old plan already sold at that level or higher
+    # (old +100% TP, or a TP3 hit of an earlier version of this regime) -> no second sale, runner trail armed
+    for x in ladder[len(o["tp_hits"]):]:
+        if len(o["tp_hits"]) == len(_cum(ladder)) and len(x) > 2 and x[2] == "rem" and any(h >= x[0] - 1e-9 for h in old_hits):
+            o["tp_hits"].append(round(x[0], 2))
+        else: break
     peak_g = (o.get("peak_price") or o["entry_mid"]) / o["entry_price"] - 1
     o["tp_passed"] = bool(o["tp_hits"]) or peak_g >= ladder[0][0]
     o["exit_regime"] = EXIT_REGIME
@@ -433,10 +451,16 @@ def exit_plan(o):
     return o.get("exit") or MAIN_EXIT
 
 def stop_level(o, ex=None):
-    """(stop price, stop fraction, kind): initial stop before any TP, fixed post-TP stop afterwards."""
+    """(stop price, stop fraction, kind): initial stop before any TP, fixed post-TP stop after a TP, and after TP3 (2x)
+    max(fixed stop, peak x (1 - runner_trail)) - USER ORDER 2026-10-24 01:48."""
     ex = ex or exit_plan(o)
     if o.get("tp_hits") or o.get("tp_passed"):
-        sl = ex.get("post_tp_stop", EXIT_POST_TP_STOP); return o["entry_price"] * (1 - sl), sl, "fixed after TP"
+        sl = ex.get("post_tp_stop", EXIT_POST_TP_STOP); fixed = o["entry_price"] * (1 - sl)
+        tr, after = ex.get("runner_trail"), ex.get("runner_trail_after")
+        if tr and after is not None and any(h >= after - 1e-9 for h in (o.get("tp_hits") or [])):
+            trail = (o.get("peak_price") or o["entry_price"]) * (1 - tr)
+            if trail > fixed: return trail, tr, "trail after TP3"
+        return fixed, sl, "fixed after TP"
     sl = o.get("stop_loss") or STOP_LOSS.get(o.get("venue"), 0.20); return o["entry_price"] * (1 - sl), sl, "initial"
 
 def fast_exit(o, mark, flow, held_min):
@@ -448,7 +472,8 @@ def fast_exit(o, mark, flow, held_min):
         if EXIT_LIQ_PULL and liq < o["liq_peak"] * (1 - EXIT_LIQ_PULL):
             return f"liquidity pull: pool liquidity ${liq:,.0f} < {1 - EXIT_LIQ_PULL:.0%} of held peak ${o['liq_peak']:,.0f}"
     m5, h1 = flow.get("m5"), flow.get("h1")
-    if EXIT_VC_ENABLED and m5 is not None and h1 and held_min >= EXIT_VC_MIN_HOLD_MIN and float(h1) >= EXIT_VC_MIN_H1_USD:
+    tp3 = any(h >= EXIT_RUNNER_TRAIL_AFTER - 1e-9 for h in (o.get("tp_hits") or []))
+    if EXIT_VC_ENABLED and (EXIT_VC_AFTER_TP3 or not tp3) and m5 is not None and h1 and held_min >= EXIT_VC_MIN_HOLD_MIN and float(h1) >= EXIT_VC_MIN_H1_USD:
         r = float(m5) / (float(h1) / 12); o["vc_ratio"] = round(r, 3)
         chg = mark / o["entry_price"] - 1
         if r < EXIT_VC_RATIO and chg < EXIT_VC_MAX_CHG:
@@ -457,9 +482,9 @@ def fast_exit(o, mark, flow, held_min):
 
 def exit_decision(o, mark, ratio=None, vmode="", safety=None, t=None, flow=None):
     """One exit check at `mark` (EXIT_REGIME). Updates peak/tp_hits on o. Returns (frac or None, text). Order (first match wins):
-    stop (initial, or fixed entry -EXIT_POST_TP_STOP once any TP hit) -> safety (new pairs) -> fast exits (liquidity pull, volume
+    stop (initial, fixed entry -EXIT_POST_TP_STOP once any TP hit, max(fixed, peak x 0.5) after TP3) -> safety (new pairs) -> fast exits (liquidity pull, volume
     collapse) -> time stop (optionally only if not in profit) -> max hold -> take-profit ladder (cumulative fractions of the INITIAL
-    qty; several levels in one check sell together) -> volume decay. No trailing stop, no profit lock."""
+    qty, TP3 "rem" = half of what is left; several levels in one check sell together) -> volume decay. Trailing only after TP3, no profit lock."""
     t = t or now()
     ex = exit_plan(o)
     o["peak_price"] = max(o.get("peak_price") or o["entry_mid"], mark)
@@ -471,6 +496,8 @@ def exit_decision(o, mark, ratio=None, vmode="", safety=None, t=None, flow=None)
     hits = o.setdefault("tp_hits", [])
     stop_px, sl, kind = stop_level(o, ex)
     if mark <= stop_px:
+        if kind == "trail after TP3":
+            return 1.0, f"stop-loss: trailing -{sl:.0%} from peak after TP3 (peak {peak_g:+.0%}, mark {chg:+.1%} vs entry){tag}"
         return 1.0, f"stop-loss: mark {chg:+.1%} vs entry <= -{sl:.0%}" + (" (fixed after TP)" if kind != "initial" else "") + tag
     if safety:
         return 1.0, f"{safety} (mark {chg:+.1%}){tag}"
@@ -481,22 +508,29 @@ def exit_decision(o, mark, ratio=None, vmode="", safety=None, t=None, flow=None)
         return 1.0, f"time stop: held {held_min:.0f} min >= {ts_min} (mark {chg:+.1%}){tag}"
     if max_hold and held_min >= max_hold:
         return 1.0, f"max hold {max_hold} min reached (mark {chg:+.1%}){tag}"
-    due = [(lvl, c) for lvl, c in _cum(ladder)[len(hits):] if mark >= entry * (1 + lvl)]
+    due = []
+    for x in ladder[len(hits):]:
+        if mark >= entry * (1 + x[0]): due.append(x)
+        else: break
     if due:
-        qi = o.get("qty_initial") or o["qty"]; target = due[-1][1]
-        sell = target * qi - (qi - o["qty"])            # cumulative target minus what is already sold -> never double-sells
-        for lvl, _ in due: hits.append(round(lvl, 2))
+        qi = o.get("qty_initial") or o["qty"]; left = o["qty"]; cum = dict(_cum(ladder))
+        for x in due:                                   # init levels: cumulative target of INITIAL (never double-sells);
+            if len(x) > 2 and x[2] == "rem": left -= left * x[1]     # "rem" levels: fraction of what is left at that level
+            else: left = min(left, qi * (1 - cum[x[0]]))
+        sell = o["qty"] - left
+        for x in due: hits.append(round(x[0], 2))
         o["tp_done"] = True; o["tp_passed"] = True
-        lv = "+".join(f"+{l:.0%}" for l, _ in due)
+        lv = "+".join(f"+{x[0]:.0%}" for x in due)
         if sell <= 1e-9 * qi:
             return None, f"take-profit {len(hits)}/{len(ladder)} at {lv} already covered by earlier sells (no sale); mark {chg:+.1%}{tag}"
         frac = min(1.0, sell / o["qty"])
-        return (frac if frac < 0.999 else 1.0), f"take-profit {len(hits)}/{len(ladder)}: {lv} -> sold up to {target:.0%} of initial at {chg:+.1%}{tag}"
+        return (frac if frac < 0.999 else 1.0), (f"take-profit {len(hits)}/{len(ladder)}: {lv} -> sold {sell / qi:.1%} of initial "
+                                                 f"({1 - left / qi:.0%} total) at {chg:+.1%}{tag}")
     if ratio is not None and ratio < EXIT_RATIO:
         return 1.0, f"volume decay {vmode} = {ratio:.2f} < {EXIT_RATIO}{tag}"
     vr = f"vol ratio {ratio:.2f} [{vmode}]" if ratio is not None else vmode
     vc = f", m5/hour {o['vc_ratio']:.2f}" if o.get("vc_ratio") is not None else ""
-    return None, (f"mark {mark:.10g} ({chg:+.1%} vs entry, SL -{sl:.0%} {kind}, no trailing, peak {o['peak_price']:.10g} ({peak_g:+.0%}), "
+    return None, (f"mark {mark:.10g} ({chg:+.1%} vs entry, SL {stop_px:.10g} (-{sl:.0%} {kind}){'' if kind.startswith('trail') else ', no trailing before TP3'}, peak {o['peak_price']:.10g} ({peak_g:+.0%}), "
                   f"TP {len(hits)}/{len(ladder)}, {held_min:.0f}/{ts_min} min" + (" (only if not in profit)" if ts_profit_ok else "") + f", {vr}{vc})")
 
 # ---------------- JUDGE helpers ----------------
@@ -953,12 +987,14 @@ def regime_marker():
                 except ValueError: pass
         if last == EXIT_REGIME: return False
         rec = {"type": "EXIT_REGIME", "regime": EXIT_REGIME, "since": EXIT_REGIME_SINCE, "logged_at": now().isoformat(), "tp": EXIT_TP_LADDER,
-               "post_tp_stop": EXIT_POST_TP_STOP, "initial_stop": STOP_LOSS, "newpairs_initial_stop": 0.30, "trailing": None, "profit_lock": None,
+               "post_tp_stop": EXIT_POST_TP_STOP, "initial_stop": STOP_LOSS, "newpairs_initial_stop": 0.30, "profit_lock": None,
+               "trailing": {"only_after_tp_level": EXIT_RUNNER_TRAIL_AFTER, "from_peak": EXIT_RUNNER_TRAIL, "floor": f"entry x {1 - EXIT_POST_TP_STOP:.2f}"},
+               "vol_collapse_after_tp3": EXIT_VC_AFTER_TP3,
                "vol_collapse": {"enabled": EXIT_VC_ENABLED, "ratio": EXIT_VC_RATIO, "max_chg": EXIT_VC_MAX_CHG, "min_hold_min": EXIT_VC_MIN_HOLD_MIN, "min_h1_usd": EXIT_VC_MIN_H1_USD},
                "liq_pull": EXIT_LIQ_PULL, "nodata_s": EXIT_NODATA_S, "checks_per_min": RISK_CHECKS, "step_s": RISK_STEP_S}
         os.makedirs(os.path.dirname(REGIME_LOG), exist_ok=True)
         with open(REGIME_LOG, "a") as f: f.write(json.dumps(rec) + "\n")
-        log(f"[REGIME] exit regime {EXIT_REGIME} active (since {EXIT_REGIME_SINCE}): TP {EXIT_TP_LADDER}, fixed stop -{EXIT_POST_TP_STOP:.0%} after TP, no trailing/lock, fast exits {RISK_CHECKS}/min")
+        log(f"[REGIME] exit regime {EXIT_REGIME} active (since {EXIT_REGIME_SINCE}): TP {EXIT_TP_LADDER}, fixed stop -{EXIT_POST_TP_STOP:.0%} after TP, after TP3 trail -{EXIT_RUNNER_TRAIL:.0%} from peak (floor fixed stop), no lock, fast exits {RISK_CHECKS}/min")
         return True
     except Exception as e:
         log(f"[REGIME] marker write failed: {e}"); return False

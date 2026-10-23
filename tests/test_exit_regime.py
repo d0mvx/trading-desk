@@ -1,6 +1,7 @@
 """USER ORDER 2026-10-24 01:24 (Dominic): exit regime tp30_60_fix20 - TP1 +30% 1/3, TP2 +60% 1/3 of the INITIAL qty, last 1/3 runs;
 after any TP a FIXED stop at entry -20%, no trailing, no profit lock; initial stops unchanged; open positions migrate without
-double selling. USER ORDER 2026-10-24 01:25: fast exits (14 checks/min), volume collapse, liquidity pull, no-data emergency exit."""
+double selling. USER ORDER 2026-10-24 01:48: + TP3 at 2x sells half of the REMAINING qty; only after TP3 a trailing stop
+max(entry x 0.80, peak x 0.50); volume collapse off after TP3. USER ORDER 2026-10-24 01:25: fast exits (14 checks/min), volume collapse, liquidity pull, no-data emergency exit."""
 import os, sys, json, unittest, datetime as dt
 sys.path.insert(0, os.path.dirname(__file__)); from _iso import iso_meme, pos
 
@@ -12,19 +13,44 @@ class Ladder(unittest.TestCase):
         o["qty"] -= o["qty"] * frac
     def test_constants(self):
         m = self.m
-        self.assertEqual(m.EXIT_TP_LADDER, [[0.30, 1 / 3], [0.60, 1 / 3]]); self.assertEqual(m.EXIT_POST_TP_STOP, 0.20)
+        self.assertEqual(m.EXIT_TP_LADDER, [[0.30, 1 / 3], [0.60, 1 / 3], [1.00, 0.50, "rem"]]); self.assertEqual(m.EXIT_POST_TP_STOP, 0.20)
+        self.assertEqual((m.EXIT_RUNNER_TRAIL, m.EXIT_RUNNER_TRAIL_AFTER, m.EXIT_VC_AFTER_TP3), (0.50, 1.00, False))
+        self.assertEqual((m.MAIN_EXIT["runner_trail"], m.MAIN_EXIT["runner_trail_after"]), (0.50, 1.00))
         self.assertEqual(m.STOP_LOSS, {"bonding_curve": 0.30, "pumpswap": 0.20})
         for k in ("trail", "trail_arm", "trail_tight", "trail_after_time_stop", "lock_trigger"): self.assertNotIn(k, m.MAIN_EXIT)
         self.assertEqual(m.MAIN_EXIT["regime"], m.EXIT_REGIME)
     def test_tp1_tp2_runner(self):
         m = self.m; o = pos("A")
         self.assertIsNone(m.exit_decision(o, 1.29)[0])
-        f, why = m.exit_decision(o, 1.30); self.assertAlmostEqual(f, 1 / 3); self.assertIn("take-profit 1/2", why); self.sell(o, f)
+        f, why = m.exit_decision(o, 1.30); self.assertAlmostEqual(f, 1 / 3); self.assertIn("take-profit 1/3", why); self.sell(o, f)
         self.assertIsNone(m.exit_decision(o, 1.45)[0])
-        f, why = m.exit_decision(o, 1.61); self.assertAlmostEqual(f, 0.5); self.assertIn("take-profit 2/2", why); self.sell(o, f)
+        f, why = m.exit_decision(o, 1.61); self.assertAlmostEqual(f, 0.5); self.assertIn("take-profit 2/3", why); self.sell(o, f)
         self.assertAlmostEqual(o["qty"], o["qty_initial"] / 3)
-        for px in (2.0, 3.0, 1.5, 1.0, 0.81): self.assertIsNone(m.exit_decision(o, px)[0], px)   # no trailing: +200% -> -19% stays
+        for px in (1.99, 1.0, 0.81): self.assertIsNone(m.exit_decision(o, px)[0], px)   # no trailing before 2x: 1.99 -> 0.81 stays
+        self.assertEqual(m.stop_level(o)[2], "fixed after TP")
         f, why = m.exit_decision(o, 0.80); self.assertEqual(f, 1.0); self.assertIn("fixed after TP", why)
+    def test_tp3_half_of_rest_then_trail50(self):
+        m = self.m; o = pos("R")
+        for px in (1.30, 1.60):
+            f, _ = m.exit_decision(o, px); self.sell(o, f)
+        f, why = m.exit_decision(o, 2.0); self.assertAlmostEqual(f, 0.5); self.assertIn("take-profit 3/3", why); self.sell(o, f)
+        self.assertAlmostEqual(o["qty"], o["qty_initial"] / 6); self.assertEqual(o["tp_hits"], [0.3, 0.6, 1.0])
+        self.assertAlmostEqual(m.stop_level(o)[0], 1.0); self.assertEqual(m.stop_level(o)[2], "trail after TP3")   # max(0.8, 2.0 x 0.5)
+        self.assertIsNone(m.exit_decision(o, 4.0)[0]); self.assertAlmostEqual(m.stop_level(o)[0], 2.0)      # trail follows the peak
+        self.assertIsNone(m.exit_decision(o, 2.01)[0])
+        f, why = m.exit_decision(o, 2.0); self.assertEqual(f, 1.0); self.assertIn("trailing -50% from peak after TP3", why)
+    def test_trail_floor_is_fixed_stop(self):
+        m = self.m; o = pos("FL"); o["tp_hits"] = [0.3, 0.6, 1.0]; o["tp_passed"] = True; o["exit_regime"] = m.EXIT_REGIME; o["peak_price"] = 1.5
+        self.assertEqual(m.stop_level(o)[:3:2], (0.8, "fixed after TP"))    # peak x 0.5 = 0.75 < entry x 0.8
+    def test_gap_through_all_three_levels(self):
+        m = self.m; o = pos("G3")
+        f, why = m.exit_decision(o, 2.2); self.assertAlmostEqual(f, 5 / 6); self.assertEqual(o["tp_hits"], [0.3, 0.6, 1.0])
+    def test_vc_lenient_after_tp3(self):
+        m = self.m; flow = {"m5": 50, "h1": 12000, "liq": 50000}
+        o = pos("VT", entry_time=ago(m, 15)); o["tp_hits"] = [0.3, 0.6, 1.0]; o["tp_passed"] = True; o["exit_regime"] = m.EXIT_REGIME
+        self.assertIsNone(m.fast_exit(o, 1.05, flow, 15))
+        m.EXIT_VC_AFTER_TP3 = True; self.assertIn("volume collapse", m.fast_exit(o, 1.05, flow, 15))
+        m.EXIT_VC_AFTER_TP3 = False; self.assertIn("liquidity pull", m.fast_exit(o, 1.05, {"m5": 50, "h1": 12000, "liq": 10000}, 15))
     def test_gap_through_both_levels_sells_two_thirds_once(self):
         m = self.m; o = pos("G")
         f, why = m.exit_decision(o, 1.70); self.assertAlmostEqual(f, 2 / 3); self.assertEqual(o["tp_hits"], [0.3, 0.6]); self.sell(o, f)
@@ -68,8 +94,14 @@ class Migration(unittest.TestCase):
         self.assertTrue(any("[REGIME]" in l and "migrated" in l for l in m.LOGLINES))
     def test_three_quarters_sold_no_more_tp_sales(self):
         m = self.m; o = self.old("Q", 0.75, 2.1)
-        self.assertIsNone(m.exit_decision(o, 1.9)[0]); self.assertEqual(o["tp_hits"], [0.3, 0.6])
-        f, why = m.exit_decision(o, 0.80); self.assertEqual(f, 1.0); self.assertIn("fixed after TP", why)
+        self.assertIsNone(m.exit_decision(o, 1.9)[0]); self.assertEqual(o["tp_hits"], [0.3, 0.6, 1.0])   # old +100% TP = TP3, no re-sell
+        self.assertIsNone(m.exit_decision(o, 2.5)[0])                                               # no TP3 sale again
+        f, why = m.exit_decision(o, 1.25); self.assertEqual(f, 1.0); self.assertIn("trailing -50%", why)  # peak 2.5 x 0.5
+    def test_previous_regime_position_at_tp2_migrates(self):
+        m = self.m; o = pos("PR", entry_time=ago(m, 20), peak_price=1.8); o["qty"] = o["qty_initial"] / 3; o["tp_hits"] = [0.3, 0.6]
+        o["tp_passed"] = True; o["exit_regime"] = "2026-10-24_0124_tp30_60_fix20"
+        self.assertIsNone(m.exit_decision(o, 1.7)[0]); self.assertEqual(o["tp_hits"], [0.3, 0.6]); self.assertEqual(o["exit_regime"], m.EXIT_REGIME)
+        f, _ = m.exit_decision(o, 2.05); self.assertAlmostEqual(f * o["qty"], o["qty_initial"] / 6)
     def test_passed_30_but_nothing_sold(self):
         m = self.m; o = self.old("P", 0.0, 1.40, venue="bonding_curve")
         self.assertIsNone(m.exit_decision(o, 1.10)[0]); self.assertTrue(o["tp_passed"]); self.assertEqual(o["tp_hits"], [])
@@ -124,7 +156,7 @@ class RegimeMarkerAndLearner(unittest.TestCase):
     def test_marker_once(self):
         m = self.m; self.assertTrue(m.regime_marker()); self.assertFalse(m.regime_marker())
         recs = [json.loads(l) for l in open(m.REGIME_LOG)]; self.assertEqual(len(recs), 1)
-        self.assertEqual(recs[0]["regime"], m.EXIT_REGIME); self.assertIn("logged_at", recs[0]); self.assertIsNone(recs[0]["trailing"])
+        self.assertEqual(recs[0]["regime"], m.EXIT_REGIME); self.assertIn("logged_at", recs[0]); self.assertEqual(recs[0]["trailing"]["from_peak"], 0.50); self.assertEqual(recs[0]["trailing"]["only_after_tp_level"], 1.00)
     def test_learner_cannot_touch_exits(self):
         import learner as L
         for n in ("meme.EXIT_TP_LADDER", "meme.EXIT_POST_TP_STOP", "meme.EXIT_VC_RATIO", "meme.EXIT_NODATA_S", "meme.EXIT_LIQ_PULL",
