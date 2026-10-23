@@ -21,3 +21,5 @@ PATH=/usr/local/bin:/usr/bin:/bin
 # SELF-LEARN (USER ORDER 2026-10-22 17:58): learner.py tick checks every minute, LEARNS only when due (30 min or >=10 new closed sells).
 # Kill switch: LEARNER_ENABLED=False in learner.py or env LEARNER_ENABLED=0.
 * * * * * cd $HOME/.desk && flock -n $HOME/.desk/.learner.lock timeout 120 $HOME/.desk/venv/bin/python learner.py tick >> $HOME/.desk/logs/learner.log 2>&1 #DESK
+# USER ORDER 2026-10-23 19:15/19:23 (Dominic): one-shot meme bank reset, epoch 3 = 1 SOL in EUR at live price (idempotent via --once/reset_order; runner writes state itself -> no race)
+* * * * * cd $HOME/.desk && flock -n $HOME/.desk/.bankreset.lock timeout 50 $HOME/.desk/venv/bin/python bank_reset.py --order "2026-10-23 19:23" --once >> $HOME/.desk/logs/bank_reset.log 2>&1 #DESK
