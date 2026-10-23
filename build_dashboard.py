@@ -1122,7 +1122,9 @@ data = {
              "meme_pnl": round(meme_pnl, 4), "trend_pnl": round(alp_pnl, 4), "wins": wins, "losses": losses,
              "start_eur": bank.get("start_eur"), "epoch": bank.get("epoch", 1), "started_at": bank.get("started_at"),
              "started_label": dt.datetime.fromisoformat(bank["started_at"]).astimezone(BER).strftime("%d.%m. %H:%M"),
-             "previous": bank.get("epochs", [])},
+             "previous": bank.get("epochs", []),
+             # USER ORDER 2026-10-23 19:23 standing rule: bank start = 1 SOL in EUR at reset (bank stays EUR; SOL price recorded)
+             "sol_eur_start": bank.get("sol_eur_start")},
     "dial": dial, "history": [[t.isoformat(), v] for t, v in hist[-400:]],
     "activity": [{"t": t, "line": m} for t, m in activity[:60]],
     "holdings": bank_state["holdings"], "meme_open": (meme or {}).get("open", []), "meme_closed": (meme or {}).get("closed", [])[-50:],

@@ -239,3 +239,22 @@ Revert recipe (generic): `cp -p ~/.desk/<backup>/<file> ~/.desk/<file>` for each
 - **Expected (in-sample, unverified on minute paths):** cooldown +8.28 $ on 6 trades since deploy; profit lock up to ~+26 $ over the epoch
   (16 trades), minus winners that dip to +5% after +15% and then run (not measurable without minute candles).
 - **Tests:** tests/test_profit_lock_cooldown.py (11); _iso.py redirects scan.COOLDOWN_FILE. `pytest tests --ignore=tests/backtest`: 113 passed.
+
+## 2026-10-23 19:30 — USER ORDER (Dominic 2026-10-23 19:15, corrected 19:23): meme bank reset, epoch 3 = 1 SOL in EUR — STANDING RULE
+- **Standing rule:** every meme bank reset starts at the live price of 1 SOL in EUR at reset time. The bank stays EUR-denominated as before
+  (start_eur on the dashboard, accounting in USD via meme.EURUSD 1.1215). `bank_reset.sol_eur()` = median CoinGecko SOL/EUR + Kraken SOLEUR,
+  sanity 10..1000 EUR; no sane quote -> RuntimeError before any state change (never guess). bank.json records `sol_eur_start`, `sol_source`, `bank_rule`.
+  The 19:15 variant (bank in SOL units) and a flat 100 EUR were both superseded by the user at 19:23 and are not in the code.
+- **History:** the bank was never 1 SOL before (epoch 1 = $100 on 20.10., epoch 2 = 100 EUR = $112.15 on 21.10. 20:21).
+- **How (same as epoch 2):** open positions closed at the DexScreener mark (reason `reset: ...`, normal simulated exit; abort if a mark is missing),
+  cooldowns created by those reset closes dropped, epoch-2 closed book -> archive/meme_epoch2_<tag>.json, history.csv -> archive/history_epoch2_<tag>.csv,
+  bank.epochs += epoch 2 summary, risk day-open = new start (epoch_reset record), [BANK] line in meme.log. Shadow, learner seeds, journals untouched;
+  the learner reads archive/meme_epoch*_*.json, so archive/ is now in the state manifest (mirrored to branch state).
+- **Runner-safe:** run ONCE on the GitHub runner via gh/crontab.gh one-shot (`bank_reset.py --order "2026-10-23 19:23" --once`, flock),
+  idempotent via bank.reset_order -> no race with the runner's 5-min state commits. Box never writes state.
+- **Unchanged:** ticket 10 EUR ($11.21), MAX_OPEN 6 / TOTAL 8 / NP 3, stops, rules, Alpaca (separate paper book).
+  Sizing caps the ticket at free cash (ticket = min(fixed, 2% liq, cash), skip < $1). At 93.26 EUR/SOL (= $104.59) cash covers ~9 full
+  positions ($11.42 incl. refundable ATA rent), caps allow 8.
+- **Dashboard:** "since reset (X € = 1 SOL, ...)", Hinweis "Start $… = X € = 1 SOL @ Y €/SOL, Epoche 3 seit …".
+- **Tests:** tests/test_bank_reset_1sol_eur.py (6). `pytest tests --ignore=tests/backtest`: 119 passed.
+- **Revert:** ~/.desk/backup_20261023_1920_bank_reset_1sol/ (bank_reset.py, dashboard files, manifest, crontab).
