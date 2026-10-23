@@ -35,6 +35,7 @@ R9_YOUNG_N60 = 25          # "young": fewer than 25 active 1m candles in the las
 R9_YOUNG_MAX_RUN30 = 1.0   # ... AND price vs 30 min ago >= +100% -> skip (main sleeve only)
 R10_MAX_RED1M = 0.20       # a 1m candle in the last R10_WIN_S with open->close <= -20% -> skip (dump candle)
 R10_WIN_S = 600
+CHASE_COOLDOWN_MIN = 60   # USER ORDER 2026-10-23 17:43: rule 9/10 block -> mint + pool cooldown (meme.chase_cooldown)
 NP_R9_MAX_RUN15 = 1.0      # newpairs (2-15 min old curve coins): same run-up / dump-candle limits, no "young" rule (all are young)
 NP_R10_MAX_RED1M = 0.20
 LAUNCH_MATCH = 0.02        # first 1m candle open must equal the first 1h candle open (= launch price) within 2%

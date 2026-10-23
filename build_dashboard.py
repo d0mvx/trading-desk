@@ -187,7 +187,7 @@ bots = [  # name, variant, status, note
      f"50%×dial · DRIFT {alp_lists['DRIFT']['n'] if alp_lists['DRIFT']['n'] is not None else 'null'} · INSIDERS {alp_lists['INSIDERS']['n'] if alp_lists['INSIDERS']['n'] is not None else 'null'} · {money(alp_mv.get('stocks', 0))}"),
     ("CRYPTO", "outline2", "halted" if kill_today else ("active" if crypto_sched else "idle"),
      f"15%×dial · 20:05 NY · targets {', '.join((dial or {}).get('crypto_targets', {}).get('weights', {}) or ['cash'])} · {money(alp_mv.get('crypto', 0))}"),
-    ("RISK", "sweat", "active" if risk_sched else "idle", "fast exits 5×/min (~12 s, DexScreener + chain, 0 GT) · SL -30% curve / -20% PumpSwap · trail -25% (armed ≥ +15%; -20% once peak ≥ +100%) · TP ½ +50% + ¼ +100% · 60 min · vol decay · 24h cooldown · 4% DD"
+    ("RISK", "sweat", "active" if risk_sched else "idle", "fast exits 5×/min (~12 s, DexScreener + chain, 0 GT) · SL -30% curve / -20% PumpSwap · trail -25% (armed ≥ +15%; -20% once peak ≥ +100%) · TP ½ +50% + ¼ +100% · profit lock ≥ entry +5% once peak ≥ +15% · 60 min · vol decay · 24h cooldown (60 min after rule 9/10 block) · 4% DD"
      + (" · acct kill FIRED today" if kill_today else " · acct kill 4%/30 min" if kill_sched else "")),
     ("CHIEF", "outline2", "active" if meme_sched else ("idle" if os.path.exists(f"{DESK}/.meme_schedule_ended") else "not set up"),
      ("cadence " + gate_next.split()[0].split("=")[1].replace("min", " min")) if gate_next.startswith("cadence=") and "None" not in gate_next else "schedule ended"),

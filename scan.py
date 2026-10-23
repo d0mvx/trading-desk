@@ -45,11 +45,14 @@ def cooldown_active(at=None):
     at = at or dt.datetime.now(UTC)
     return {k: v for k, v in load_json(COOLDOWN_FILE, {}).items() if dt.datetime.fromisoformat(v["until"]) > at}
 
-def cooldown_add(keys, name, reason, at=None):
+def cooldown_add(keys, name, reason, at=None, minutes=None):
+    """minutes=None -> COOLDOWN_H hours. A shorter new cooldown never shortens a longer running one (until = max)."""
     at = at or dt.datetime.now(UTC); d = cooldown_active(at)
-    until = (at + dt.timedelta(hours=COOLDOWN_H)).isoformat(timespec="seconds")
+    until = (at + (dt.timedelta(minutes=minutes) if minutes is not None else dt.timedelta(hours=COOLDOWN_H))).isoformat(timespec="seconds")
     for k in keys:
-        if k: d[k] = {"until": until, "name": name, "reason": reason[:120], "set_at": at.isoformat(timespec="seconds")}
+        if not k: continue
+        if k in d and dt.datetime.fromisoformat(d[k]["until"]) >= dt.datetime.fromisoformat(until): continue
+        d[k] = {"until": until, "name": name, "reason": reason[:120], "set_at": at.isoformat(timespec="seconds")}
     save_json(COOLDOWN_FILE, d)
     return until
 

@@ -367,7 +367,7 @@ def run(dry=False):
     for sc, age, e, rec in cands[:DEEP_MAX]:
         if time.time() - T0 > RUN_BUDGET_S: rec.update(decision="SKIP", reason="run time budget"); results.append(rec); continue
         if e["mint"] in held: rec.update(decision="HELD", reason="already held"); results.append(rec); continue
-        if e["mint"] in cool or e.get("bonding_curve") in cool: rec.update(decision="REJECT", reason="cooldown 24h"); results.append(rec); continue
+        if e["mint"] in cool or e.get("bonding_curve") in cool: rec.update(decision="REJECT", reason="cooldown: " + ((cool.get(e["mint"]) or cool.get(e.get("bonding_curve")) or {}).get("reason") or "24h")[:90]); results.append(rec); continue
         tr = update_trades(e["mint"], trc, TRADE_PAGES, errs); ts = trade_stats(tr, e["creator"])
         if age < AGE_MIN:
             rec.update(decision="WAIT", reason=f"too young ({age:.1f} < {AGE_MIN:.0f} min), trades prefetched", traction=ts); results.append(rec); continue
@@ -375,6 +375,7 @@ def run(dry=False):
         except Exception as ex: rec.update(decision="REJECT", reason=f"coin data unavailable ({type(ex).__name__})"); results.append(rec); continue
         dev = dev_history(e["creator"], devc, errs)
         fails, info = safety(e, fresh, curves.get(e.get("bonding_curve")), dev, ts, meme.rugcheck_report, meme.rugcheck_gates)
+        meme.chase_cooldown(fails, [e["mint"], e.get("bonding_curve")], e.get("name") or e["mint"][:8])
         rec["traction"] = info; rec["tier"] = "strong" if sc >= STRONG else "normal"
         if len(fails) == 1 and not fails[0].startswith(DATA_FAILS) and not fails[0].startswith("rugcheck") and rc_new[0] < SHADOW_RC_NEW:
             try:   # one cheap gate failed -> confirm RugCheck would pass before calling it a single-gate miss

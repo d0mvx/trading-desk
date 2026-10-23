@@ -12,6 +12,7 @@ def iso_meme():
     meme.RISK_JOURNAL = f"{tmp}/logs/risk_state.jsonl"
     meme.LOGLINES = []
     meme.log = lambda l: meme.LOGLINES.append(l)
+    import scan; scan.COOLDOWN_FILE = f"{tmp}/meme_cooldown.json"   # never write the live cooldown file from tests
     json.dump({"open": [], "closed": []}, open(meme.POS, "w"))
     return meme, tmp
 

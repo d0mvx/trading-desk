@@ -224,3 +224,18 @@ Revert recipe (generic): `cp -p ~/.desk/<backup>/<file> ~/.desk/<file>` for each
 - **Learner:** allowlist `rugpattern.R9_MAX_RUN15` (max, 0.60–1.0) and `rugpattern.R10_MAX_RED1M` (max, 0.12–0.20); ceiling = shipped value -> it can only tighten. Features `run15`, `red10` from the cache. Young-pool rule is not in the allowlist (two-condition rule).
 - **Tests:** `tests/test_rugpattern_chase.py` (10), test_learner CUR updated. Suite: 102 passed.
 - **Revert:** restore rugpattern.py / learner.py from git (commit before this one), delete tests/test_rugpattern_chase.py.
+
+## 2026-10-23 17:46 — USER ORDER (Dominic 2026-10-23 17:43, "Beides umsetzen"): chase cooldown 60 min + profit lock
+- **Why (diagnosis 23.10. 17:4x, epoch 2, in-sample, USD):** after the rule 9/10 deploy (22.10. 22:08) 8 tokens were blocked by rule 9/10,
+  6 of them were bought minutes later anyway (Kimchi +5.93, Bear -5.74, PUMP -3.72, Martin -0.99, McNugget -1.40, 1/SOL newpairs -2.36 = -8.28).
+  16/71 main trades reached peak >= +15% and still closed at a loss (-26.36; trail -25% from peak arms at +15% -> can exit ~-14%).
+- **1. Chase cooldown:** a rule 9 (chase) / rule 10 (dump candle) block puts mint + pool (main) or mint + bonding curve (new pairs) on a
+  `rugpattern.CHASE_COOLDOWN_MIN = 60` min cooldown in `meme_cooldown.json` (state branch -> survives ticks + runner restarts).
+  `meme.chase_cooldown()`; `scan.cooldown_add(..., minutes=)` never shortens a longer running (24 h) cooldown. Reject text shows the reason.
+- **2. Profit lock:** `meme.LOCK_TRIGGER = 0.15`, `meme.LOCK_FLOOR = 0.05`: once peak (vs entry fill) >= +15% the effective stop is
+  max(trailing stop, entry fill x 1.05) -> exit "profit lock: ...". Same `exit_decision` for main, new pairs (both tiers) and shadow;
+  per-plan override keys `lock_trigger`/`lock_floor`. Open positions: uses their stored peak_price (lock applies at once if peak >= +15%).
+  NOT in the learner allowlist (stop parameter; changed only by this direct USER ORDER). Hard stop, trail, TPs, ticket, max positions unchanged. Paper only.
+- **Expected (in-sample, unverified on minute paths):** cooldown +8.28 $ on 6 trades since deploy; profit lock up to ~+26 $ over the epoch
+  (16 trades), minus winners that dip to +5% after +15% and then run (not measurable without minute candles).
+- **Tests:** tests/test_profit_lock_cooldown.py (11); _iso.py redirects scan.COOLDOWN_FILE. `pytest tests --ignore=tests/backtest`: 113 passed.

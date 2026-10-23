@@ -48,6 +48,11 @@ VOL_MIN_AGE_H = 2.0       # volume-decay rule is off for pools younger than 2 h 
 STOP_LOSS = {"bonding_curve": 0.30, "pumpswap": 0.20}
 TRAIL_STOP = 0.25         # close all if mark <= peak mark x 0.75 ...
 TRAIL_ARM = 0.15          # ... but only once peak mark >= entry fill x 1.15: then peak x 0.75 >= entry x 0.8625, i.e. always
+# USER ORDER 2026-10-23 17:43 (Dominic, "Beides umsetzen"): PROFIT LOCK. Once the peak gain (peak mark vs entry fill) reached
+# +LOCK_TRIGGER, the effective stop is max(trailing stop, entry fill x (1 + LOCK_FLOOR)) -> a +15% winner can no longer close
+# at a loss. Main + new pairs (+ shadow, same exit_decision). Not learner-tunable (stops are not in the learner allowlist).
+LOCK_TRIGGER = 0.15
+LOCK_FLOOR = 0.05
                           # ABOVE the hard stop; before arming only the hard stop applies (no -25% trail undercutting -30%)
 TAKE_PROFIT = 0.50        # sell half once when mark >= entry fill price x 1.50
 TIME_STOP_MIN = 60        # close all 60 min after entry
@@ -406,6 +411,10 @@ def exit_decision(o, mark, ratio=None, vmode="", safety=None, t=None):
     if armed and mark <= o["peak_price"] * (1 - t_stop):
         how = "after time stop, in profit" if forced else f"armed at +{t_arm:.0%}" + (f", tightened at peak +{tight[0]:.0%}" if tight and peak_g >= tight[0] else "")
         return 1.0, f"trailing stop: mark {mark/o['peak_price']-1:+.1%} from peak <= -{t_stop:.0%} ({how}){tag}"
+    l_trig, l_floor = ex.get("lock_trigger", LOCK_TRIGGER), ex.get("lock_floor", LOCK_FLOOR)
+    locked = l_trig is not None and peak_g >= l_trig
+    if locked and mark <= entry * (1 + l_floor):
+        return 1.0, f"profit lock: mark {chg:+.1%} vs entry <= +{l_floor:.0%} (peak {peak_g:+.0%} >= +{l_trig:.0%}){tag}"
     if held_min >= ts_min and not (ts_profit_ok and chg > 0):
         return 1.0, f"time stop: held {held_min:.0f} min >= {ts_min} (mark {chg:+.1%}){tag}"
     if max_hold and held_min >= max_hold:
@@ -417,7 +426,7 @@ def exit_decision(o, mark, ratio=None, vmode="", safety=None, t=None):
         return 1.0, f"volume decay {vmode} = {ratio:.2f} < {EXIT_RATIO}{tag}"
     vr = f"vol ratio {ratio:.2f} [{vmode}]" if ratio is not None else vmode
     return None, (f"mark {mark:.10g} ({chg:+.1%} vs entry, SL -{sl:.0%}, trail -{t_stop:.0%} " + ("armed" if armed else "off (arms +" + format(t_arm, ".0%") + ")")
-                  + f", peak {o['peak_price']:.10g} ({peak_g:+.0%}), TP {len(hits)}/{len(ladder)}, {held_min:.0f}/{ts_min} min"
+                  + f", peak {o['peak_price']:.10g} ({peak_g:+.0%})" + (f", lock >= +{l_floor:.0%}" if locked else "") + f", TP {len(hits)}/{len(ladder)}, {held_min:.0f}/{ts_min} min"
                   + (" (only if not in profit)" if ts_profit_ok else "") + f", {vr})")
 
 # ---------------- JUDGE helpers ----------------
@@ -451,6 +460,20 @@ def rugpattern_fails(c):
     import rugpattern
     try: return rugpattern.check(c["base_token"], newpairs=False)
     except Exception as e: return [], [f"rule 7/8 check error {type(e).__name__}: {str(e)[:80]} -> allowed"]
+
+def chase_cooldown(fails, keys, name):
+    """USER ORDER 2026-10-23 17:43: a rule 9 (chase) / rule 10 (dump candle) block puts mint + pool(s) on a
+    rugpattern.CHASE_COOLDOWN_MIN cooldown (meme_cooldown.json = state, survives ticks and runner restarts) so the coin is not
+    bought minutes later once the 10/15-min window rolls past. Main AND new pairs. Never raises; returns until or None."""
+    try:
+        hit = next((x for x in (fails or []) if x.startswith(("rule 9 ·", "rule 10 ·"))), None)
+        if not hit: return None
+        import rugpattern, scan
+        until = scan.cooldown_add(keys, name, f"rule 9/10 block {rugpattern.CHASE_COOLDOWN_MIN} min: {hit}", minutes=rugpattern.CHASE_COOLDOWN_MIN)
+        log(f"[RISK] cooldown: {name} blocked for re-entry until {dt.datetime.fromisoformat(until).astimezone(BER):%H:%M %Z} ({hit[:60]})")
+        return until
+    except Exception as e:
+        log(f"[RISK] chase cooldown write failed: {type(e).__name__}: {str(e)[:80]}"); return None
 
 def judge_metrics(c, watch=False):
     """Deterministic entry gates on scan data. Returns list of failure strings (empty = pass).
@@ -642,7 +665,7 @@ def pipeline(dry=False):
         elif rc_down: r = f"rugcheck unavailable ({rc_down}) -> no buy"
         elif over: r = "not judged: run time budget"
         elif is_held: r = "already held (1 position per coin)"
-        elif is_cool: r = "cooldown: stopped out / losing close < 24h ago"
+        elif is_cool: r = "cooldown: " + ((cool.get(c["base_token"]) or cool.get(c["pool"]) or {}).get("reason") or "stopped out / losing close < 24h ago")[:90]
         elif c["venue"] == "bonding_curve":   # upgrade 4 (2026-10-20 19:5x): main sleeve makes no real buys on the curve
             r = "bonding curve: main sleeve makes no real buys on the curve (shadow only)"
             add_shadow(c, chain(c, w), "blocked:bonding_curve")
@@ -651,6 +674,7 @@ def pipeline(dry=False):
             if not f:   # USER ORDER 2026-10-21 19:34/19:37: rule 7 (first-candle launch pump) + rule 8 (bot-wash), pump.fun candles, 0 GT calls
                 f, rp_notes = rugpattern_fails(c)
                 for n_ in rp_notes: _log(f"[JUDGE] [{lead_id(c.get('base_token'))}] {c['name']}: {n_}")
+                chase_cooldown(f, [c.get("base_token"), c.get("pool")], c["name"])
             if f:
                 r = ("judge: " if not w else "judge (watchlist): ") + "; ".join(f)
                 if len(f) == 1: add_shadow(c, chain(c, w, pre=f))
