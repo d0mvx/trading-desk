@@ -60,7 +60,7 @@ def open_entries(ents):
             o = {"id": f"S{int(t*1000)%10**10}{n}", "lead": lead_id(e["token"]), "cat": e["cat"], "note": (e.get("note") or "")[:160], "sleeve": e.get("sleeve", "main"),
                  "pool": e["pool"], "token": e["token"], "name": e["name"], "venue": e["venue"], "url": e.get("url"),
                  "entry_time": meme.now().isoformat(), **b, "tp_done": False, "tp_hits": [], "stop_loss": meme.STOP_LOSS.get(e["venue"], 0.20) if e.get("sleeve") != "newpairs" else 0.30,
-                 "exit": e.get("exit") or meme.MAIN_EXIT, "realized": 0.0, "cost_initial": ticket, "shadow": True, "price_src": a.get("_src", "candidate")}
+                 "exit": meme.regime_plan(e.get("exit")), "exit_regime": meme.EXIT_REGIME, "realized": 0.0, "cost_initial": ticket, "shadow": True, "price_src": a.get("_src", "candidate")}
             for k in ("tier", "creator", "narrative_score", "feat"):   # feat: 2026-10-22 SELF-LEARN entry features
                 if e.get(k) is not None: o[k] = e[k]
             d["open"].append(o); rec[key] = t; percat[e["cat"]] = percat.get(e["cat"], 0) + 1; n += 1
@@ -88,23 +88,34 @@ def check(i, deadline=None):
         for o in d["open"]:
             a = data.get(o["pool"])
             if o["id"] in rcat: o["np_rc_at"] = rcat[o["id"]]; o["_saf_at"] = time.time()
-            if not a: keep.append(o); continue
-            if a.get("_migrated_to") and o["venue"] == "bonding_curve":
-                o["pool_original"] = o["pool"]; o["pool"] = a["_migrated_to"]; o["venue"] = "pumpswap"
-            mark = float(a["base_token_price_usd"]); ratio, vmode = meme.vol_decay(a.get("volume_usd") or {}, a.get("pool_created_at"))
-            o["last_price"] = mark; o["last_check"] = meme.now().isoformat()
-            frac, why = meme.exit_decision(o, mark, ratio, vmode, saf.get(o["id"]))
+            if not a:   # same no-data emergency exit as the real book (USER ORDER 2026-10-24 01:25)
+                o.setdefault("price_missing_since", meme.now().isoformat())
+                miss_s = (meme.now() - dt.datetime.fromisoformat(o["price_missing_since"])).total_seconds()
+                if not (meme.EXIT_NODATA_S and miss_s >= meme.EXIT_NODATA_S and o.get("last_price")): keep.append(o); continue
+                mark = float(o["last_price"]) * (1 - meme.EXIT_NODATA_HAIRCUT); ratio = None; frac = 1.0; o["nodata_fill_assumed"] = True; meme.exit_plan(o)
+                a = {"base_token_price_usd": mark, "quote_token_price_usd": o.get("sol_usd"), "reserve_in_usd": o.get("liq_last") or 0, "market_cap_usd": 0}
+                why = f"no-data emergency exit: no price for {miss_s:.0f}s >= {meme.EXIT_NODATA_S}s (SIMULATED fill at last mark -{meme.EXIT_NODATA_HAIRCUT:.0%})"
+            else:
+                o.pop("price_missing_since", None)
+                if a.get("_migrated_to") and o["venue"] == "bonding_curve":
+                    o["pool_original"] = o["pool"]; o["pool"] = a["_migrated_to"]; o["venue"] = "pumpswap"; o.pop("liq_peak", None)
+                mark = float(a["base_token_price_usd"]); ratio, vmode = meme.vol_decay(a.get("volume_usd") or {}, a.get("pool_created_at"))
+                o["last_price"] = mark; o["last_check"] = meme.now().isoformat()
+                flow = meme.pool_flow(a)
+                if flow.get("liq"): o["liq_last"] = flow["liq"]
+                frac, why = meme.exit_decision(o, mark, ratio, vmode, saf.get(o["id"]), flow=flow)
             n += 1
             if not frac: keep.append(o); continue
             f = meme.sim_sell(o, a, frac); o["realized"] = round(o.get("realized", 0) + f["pnl"], 6)
-            tlog({"type": "SHADOW_SELL", "id": o["id"], "cat": o["cat"], "name": o["name"], "frac": frac, "reason": why, **f})
+            tlog({"type": "SHADOW_SELL", "id": o["id"], "cat": o["cat"], "name": o["name"], "frac": frac, "reason": why, "exit_regime": o.get("exit_regime"), **f})
             if frac < 1.0:
                 o["qty"] -= f["qty"]; o["cost_usd"] = round(o["cost_usd"] - f["cost_usd"], 6); keep.append(o)
                 log(f"[SHADOW] SELL PART {ltag(o.get('token'))}{o['name']} [{o['cat']}] {frac:.0%} -> {f['pnl']:+.4f} | {why}")
             else:
                 c = {"id": o["id"], "cat": o["cat"], "sleeve": o["sleeve"], "name": o["name"], "venue": o["venue"], "entry_time": o["entry_time"],
                      "exit_time": f["exit_time"], "cost_usd": o["cost_initial"],
-                     "pnl": o["realized"], "peak_gain": round(o["peak_price"] / o["entry_price"] - 1, 4), "tp_hits": o.get("tp_hits"), "reason": why[:140]}
+                     "pnl": o["realized"], "peak_gain": round(o["peak_price"] / o["entry_price"] - 1, 4), "tp_hits": o.get("tp_hits"), "reason": why[:140],
+                     "exit_regime": o.get("exit_regime")}
                 c["pnl_pct"] = round(c["pnl"] / c["cost_usd"], 4) if c["cost_usd"] else None
                 d["closed"].append(c)
                 log(f"[SHADOW] CLOSE {ltag(o.get('token'))}{o['name']} [{o['cat']}] total {o['realized']:+.4f} ({(c['pnl_pct'] or 0):+.1%}) | {why}")

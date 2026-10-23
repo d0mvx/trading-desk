@@ -187,7 +187,7 @@ bots = [  # name, variant, status, note
      f"50%×dial · DRIFT {alp_lists['DRIFT']['n'] if alp_lists['DRIFT']['n'] is not None else 'null'} · INSIDERS {alp_lists['INSIDERS']['n'] if alp_lists['INSIDERS']['n'] is not None else 'null'} · {money(alp_mv.get('stocks', 0))}"),
     ("CRYPTO", "outline2", "halted" if kill_today else ("active" if crypto_sched else "idle"),
      f"15%×dial · 20:05 NY · targets {', '.join((dial or {}).get('crypto_targets', {}).get('weights', {}) or ['cash'])} · {money(alp_mv.get('crypto', 0))}"),
-    ("RISK", "sweat", "active" if risk_sched else "idle", "fast exits 5×/min (~12 s, DexScreener + chain, 0 GT) · SL -30% curve / -20% PumpSwap · trail -25% (armed ≥ +15%; -20% once peak ≥ +100%) · TP ½ +50% + ¼ +100% · profit lock ≥ entry +5% once peak ≥ +15% · 60 min · vol decay · 24h cooldown (60 min after rule 9/10 block) · 4% DD"
+    ("RISK", "sweat", "active" if risk_sched else "idle", "fast exits 14×/min (~4 s, DexScreener + chain) · SL -30% curve / -20% PumpSwap · TP ⅓ +30% + ⅓ +60%, rest runs · after any TP fixed stop entry -20% (no trailing, no lock) · volume-collapse / liquidity-pull / no-data exits · 60 min time stop · vol decay · 24h cooldown (60 min after rule 9/10 block) · 4% DD"
      + (" · acct kill FIRED today" if kill_today else " · acct kill 4%/30 min" if kill_sched else "")),
     ("CHIEF", "outline2", "active" if meme_sched else ("idle" if os.path.exists(f"{DESK}/.meme_schedule_ended") else "not set up"),
      ("cadence " + gate_next.split()[0].split("=")[1].replace("min", " min")) if gate_next.startswith("cadence=") and "None" not in gate_next else "schedule ended"),
@@ -347,7 +347,7 @@ _npo = [o for o in (meme or {}).get("open", []) if o.get("sleeve") == "newpairs"
 _npc = [c for c in (meme or {}).get("closed", []) if c.get("sleeve") == "newpairs"][-8:]
 _np_pos = "".join(f'<tr><td>{esc(o["name"].split(" / ")[0])}<div class="vn">NEW PAIR</div></td><td><b>{esc((o.get("tier") or "").upper())}</b> · {o.get("narrative_score")}</td>'
                   f'<td>{money(o["cost_usd"])}</td><td class="{"up" if (o.get("last_price") or 0) >= o["entry_price"] else "down"}">{((o.get("last_price") or o["entry_price"]) / o["entry_price"] - 1) * 100:+.0f}%</td>'
-                  f'<td class="why">{esc(", ".join(o.get("narrative") or []))}<div class="vn">exits: ' + esc(" / ".join(f"{int(f*100)}% @ +{int(g*100)}%" for g, f in (o.get("exit") or {}).get("tp", [])) + f' · trail -{int((o.get("exit") or {}).get("trail", 0.25)*100)}% after +{int((o.get("exit") or {}).get("trail_arm", 0.15)*100)}% · time stop {(o.get("exit") or {}).get("time_stop_min", 30)} min' + (" if not in profit" if (o.get("exit") or {}).get("time_stop_only_if_not_profit") else "")) + '</div></td></tr>' for o in _npo)
+                  f'<td class="why">{esc(", ".join(o.get("narrative") or []))}<div class="vn">exits: ' + esc(" / ".join(f"{int(f*100)}% @ +{int(g*100)}%" for g, f in meme_mod.regime_plan(o.get("exit")).get("tp", [])) + f' · after TP fixed stop entry -{int(meme_mod.EXIT_POST_TP_STOP*100)}% (no trailing) · time stop {(o.get("exit") or {}).get("time_stop_min", 30)} min' + (" if not in profit" if (o.get("exit") or {}).get("time_stop_only_if_not_profit") else "")) + '</div></td></tr>' for o in _npo)
 _np_pos += "".join(f'<tr><td>{esc(c["name"].split(" / ")[0])}<div class="vn">closed{" (part)" if c.get("partial") else ""}</div></td><td>{esc((c.get("tier") or "").upper())}</td><td>{money(c["cost_usd"])}</td>'
                    f'<td class="{"up" if c["pnl"] >= 0 else "down"}">{c["pnl"]:+.2f}</td><td class="why">{esc((c.get("exit_reason") or "")[:120])}</td></tr>' for c in reversed(_npc))
 if _np:
@@ -357,7 +357,7 @@ if _np:
                '<div class="sub">score = 7×weight (famous people/crypto w7–10, classic memes w5–8, trending X topics w1–10 +10, generic animals/AI/events w4–7; description ×0.7) '
                '+ socials (own X +10, X post +6, website +6, TG +3; none −20) − copycat −30 − impersonation −25/−15 − spam/bot −10 · pass ≥ 70 · STRONG ≥ 85 · '
                'safety: RugCheck gates + dev not sold + not serial launcher (≤ 2 other coins/24h) + ≥ 25 unique buyers + buys > sells + curve 5–60% + first-2-block snipers ≤ 10% · '
-               'ticket 1.5% × bank × dial · max 2 new pairs (4 overall) · NORMAL: ½ @ +50%, ¼ @ +100%, trail −25% after +15% (−20% once peak ≥ +100%), 30-min time stop only if not in profit (else trailing; 12 h cap) · STRONG: ⅓ @ +100%, ⅓ @ +300%, trail −35% after +50%, 3 h time stop only if not in profit (12 h cap) · all: −30% hard stop, dev-sell / volume-collapse / RugCheck-danger exits</div>'
+               'ticket 1.5% × bank × dial · max 2 new pairs (4 overall) · all tiers: ⅓ @ +30%, ⅓ @ +60%, rest runs; after any TP fixed stop entry −20% (no trailing) · NORMAL: 30-min time stop only if not in profit (12 h cap) · STRONG: 3 h time stop only if not in profit (12 h cap) · all: −30% hard stop before TP1, dev-sell / volume-collapse / liquidity-pull / no-data / RugCheck-danger exits</div>'
                + (f'<div class="lbl mt">NEW-PAIR POSITIONS</div><div class="tscroll"><table class="rt"><tr><th>TOKEN</th><th>TIER</th><th>COST</th><th>P&amp;L</th><th>NARRATIVE / EXITS</th></tr>{_np_pos}</table></div>' if _np_pos else "")
                + f'<details open class="mt"><summary>candidates (narrative ≥ {_np.get("threshold")}) · {len(_np.get("candidates") or [])}</summary>'
                + (f'<div class="tscroll"><table class="rt"><tr><th>TOKEN</th><th>AGE</th><th>SCORE</th><th>MATCHED</th><th>VERDICT</th></tr>{_np_rows(_np.get("candidates") or [])}</table></div>' if _np.get("candidates") else '<div class="empty">No fresh launch with a strong enough narrative right now.</div>')
@@ -415,7 +415,8 @@ def de_time(t):
     t = t if t.tzinfo else t.replace(tzinfo=UTC); b = t.astimezone(BER)
     return b.strftime("%H:%M") if b.date() == TODAY_BER else b.strftime("%d.%m. %H:%M")
 def pn(x): return "pos" if x > 1e-9 else "neg" if x < -1e-9 else "zero"
-REASON_DE = [("stop-loss", "Stop-Loss"), ("trailing stop", "Trailing-Stop"), ("take-profit", "Take-Profit"), ("time stop", "Zeit-Stop"),
+REASON_DE = [("stop-loss", "Stop-Loss"), ("trailing stop", "Trailing-Stop"), ("profit lock", "Gewinnsicherung"), ("volume collapse", "Volumen-Kollaps"),
+             ("liquidity pull", "Liquidität abgezogen"), ("no-data", "Keine Kursdaten"), ("take-profit", "Take-Profit"), ("time stop", "Zeit-Stop"),
              ("max hold", "Max. Haltedauer"), ("volume decay", "Volumen-Einbruch"), ("dev sold", "Dev verkauft"), ("dev-sell", "Dev verkauft"),
              ("rugcheck", "RugCheck-Gefahr"), ("daily drawdown", "Tages-Drawdown")]
 def reason_de(r):
@@ -439,30 +440,22 @@ for c in (meme or {}).get("closed", []):
     if c.get("partial"): _partials[(c.get("token"), c.get("entry_time"))] = _partials.get((c.get("token"), c.get("entry_time")), 0.0) + c["pnl"]
 for o in (meme or {}).get("open", []):
     try:
-        oc = dict(o); ex = meme_mod.exit_plan(oc) or {}
+        oc = json.loads(json.dumps(o)); meme_mod.migrate_exit(oc); ex = oc.get("exit") or meme_mod.MAIN_EXIT   # display copy, no log
         sl_ = "newpairs" if o.get("sleeve") == "newpairs" else "meme"
         entry = o["entry_price"]; last = o.get("last_price") or entry
         peak = max(o.get("peak_price") or o.get("entry_mid") or entry, last)
         chg, peak_g = last / entry - 1, peak / entry - 1
-        sl = o.get("stop_loss") or meme_mod.STOP_LOSS.get(o.get("venue"), 0.20)
-        t_arm, t_stop = ex.get("trail_arm", meme_mod.TRAIL_ARM), ex.get("trail", meme_mod.TRAIL_STOP)
-        tight = ex.get("trail_tight")
-        if tight and peak_g >= tight[0]: t_stop = min(t_stop, tight[1])
         held = (NOW - dt.datetime.fromisoformat(o["entry_time"])).total_seconds() / 60
         ts_min = ex.get("time_stop_min", meme_mod.TIME_STOP_MIN); ts_only_loss = ex.get("time_stop_only_if_not_profit", False)
-        if ex.get("trail_after_time_stop") and held >= ts_min and chg > 0: peak_g = max(peak_g, t_arm)
-        armed = peak_g >= t_arm
-        hard_px = entry * (1 - sl); trail_px = peak * (1 - t_stop) if armed else None
-        if trail_px and trail_px > hard_px:
-            stop_px = trail_px; stop_txt = f'Trailing {de_px(trail_px)} <i>(−{t_stop*100:.0f}\u00a0% vom Peak · {de_pct(trail_px/last-1, 0)} vom Kurs)</i>'
-        else:
-            stop_px = hard_px; stop_txt = (f'Stop {de_px(hard_px)} <i>(−{sl*100:.0f}\u00a0% · {de_pct(hard_px/last-1, 0)} vom Kurs)</i>'
-                                           + (f'<br><i>Trailing −{t_stop*100:.0f}\u00a0% ab Peak +{t_arm*100:.0f}\u00a0%</i>' if not armed else ""))
-        ladder = ex.get("tp") or []; hits = o.get("tp_hits") if o.get("tp_hits") is not None else oc.get("tp_hits", [])
+        # USER ORDER 2026-10-24 01:24: no trailing - initial stop before any TP, FIXED stop entry -20% after a TP (meme.stop_level)
+        stop_px, sl, stop_kind = meme_mod.stop_level(oc, ex); post_tp = stop_kind != "initial"
+        stop_txt = (f'{"Fix-Stop" if post_tp else "Stop"} {de_px(stop_px)} <i>(Einstieg −{sl*100:.0f}\u00a0%{" · fix nach TP" if post_tp else ""} · '
+                    f'{de_pct(stop_px/last-1, 0)} vom Kurs)</i>' + ('' if post_tp else f'<br><i>nach TP1: Fix-Stop Einstieg −{ex.get("post_tp_stop", meme_mod.EXIT_POST_TP_STOP)*100:.0f}\u00a0%, kein Trailing</i>'))
+        ladder = ex.get("tp") or []; hits = oc.get("tp_hits") or []
         nxt = ladder[len(hits)] if len(hits) < len(ladder) else None
         tp_px = entry * (1 + nxt[0]) if nxt else None
         tp_txt = (f'TP{len(hits)+1}/{len(ladder)} {de_px(tp_px)} <i>(+{nxt[0]*100:.0f}\u00a0% · {nxt[1]*100:.0f}\u00a0% der Startmenge)</i>' if nxt
-                  else ('alle TPs erreicht · Rest läuft mit Trailing' if ladder else '—'))
+                  else ('alle TPs erreicht · Rest läuft (Fix-Stop, kein Trailing)' if ladder else '—'))
         left = ts_min - held
         ts_txt = (("Zeit-Stop fällig" if left <= 0 else f"Zeit-Stop in {de_dur(left)}") + (" (nur wenn nicht im Plus)" if ts_only_loss else "")) if ts_min else ""
         value = o["qty"] * last; cost = o["cost_usd"]; upl = value - cost; upl_pct = upl / cost if cost else 0.0
@@ -495,9 +488,9 @@ for o in (meme or {}).get("open", []):
         _ck = "m_" + str(o.get("pool"))
         _cd = open_cards[sl_][-1]
         hold_items.append({"ck": _ck, "sleeve": sl_, "name": nm, "value": value, "cost": cost, "upl": upl, "upl_pct": upl_pct * 100, "desk": _SLEEVE_LBL[sl_],
-                           "status": ("TP taken · runner" if part else ("trailing" if armed else "in a trade")), "det": _cd[_cd.index('<div class="tc-g">'):-6]})
+                           "status": ("TP taken · runner" if (part or hits) else ("TP passed · fixed stop" if post_tp else "in a trade")), "det": _cd[_cd.index('<div class="tc-g">'):-6]})
         open_cards[sl_][-1] = _with_chart(open_cards[sl_][-1], _ck)
-        _lv = [{"p": stop_px, "c": "#ff453a", "t": "Trailing" if (trail_px and trail_px > hard_px) else "Stop"}]
+        _lv = [{"p": stop_px, "c": "#ff453a", "t": "Fix-Stop" if post_tp else "Stop"}]
         if tp_px: _lv.append({"p": tp_px, "c": "#30d158", "t": f"TP{len(hits)+1}"})
         _sells = [{"t": dt.datetime.fromisoformat(c["exit_time"]).timestamp(), "p": c.get("exit_price"), "txt": "Teilverkauf " + de_usd(c["pnl"], 2, True)}
                   for c in (meme or {}).get("closed", []) if c.get("partial") and c.get("token") == o.get("token") and c.get("entry_time") == o.get("entry_time")]

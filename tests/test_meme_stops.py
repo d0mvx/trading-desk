@@ -45,11 +45,12 @@ class Stops(unittest.TestCase):
         # 70 s without price -> every check logs [STALE], and the GT fallback is tried
         p = json.load(open(m.POS)); p["open"][0]["price_missing_since"] = (m.now() - dt.timedelta(seconds=70)).isoformat(); json.dump(p, open(m.POS, "w"))
         asked = []; m.pools_multi = lambda addrs, deadline=None: asked.append(addrs) or {}
-        m.LOGLINES.clear(); m.risk_check(2, [])
+        gi = m.RISK_CHECKS // 2   # GT fallback runs on check 0 and the mid-minute check
+        m.LOGLINES.clear(); m.risk_check(gi, [])
         self.assertTrue(any("NO PRICE" in l and "STALE" in l for l in m.LOGLINES)); self.assertEqual(asked, [["PB"]])
         # fallback returns a price below the stop -> closes in that same check
         m.pools_multi = lambda addrs, deadline=None: {"PB": {"base_token_price_usd": "0.70", "volume_usd": {}}}
-        m.risk_check(2, [])
+        m.risk_check(gi, [])
         self.assertEqual(self.closed[-1][0], "B"); self.assertIn("stop-loss", self.closed[-1][1])
     def test_price_error_does_not_crash_loop(self):
         m = self.m; self.book(pos("C"))

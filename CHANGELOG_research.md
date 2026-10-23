@@ -258,3 +258,45 @@ Revert recipe (generic): `cp -p ~/.desk/<backup>/<file> ~/.desk/<file>` for each
 - **Dashboard:** "since reset (X € = 1 SOL, ...)", Hinweis "Start $… = X € = 1 SOL @ Y €/SOL, Epoche 3 seit …".
 - **Tests:** tests/test_bank_reset_1sol_eur.py (6). `pytest tests --ignore=tests/backtest`: 119 passed.
 - **Revert:** ~/.desk/backup_20261023_1920_bank_reset_1sol/ (bank_reset.py, dashboard files, manifest, crontab).
+
+## 2026-10-24 01:24 + 01:25 — USER ORDER (Dominic): exit regime `2026-10-24_0124_tp30_60_fix20` + fast exits (meme main, new pairs, shadow)
+- **Exit rules (meme.py `EXIT_TP_LADDER`, `EXIT_POST_TP_STOP`, `exit_decision`):** TP1 +30 % sells 1/3 of the INITIAL qty, TP2 +60 % another
+  1/3, the last 1/3 runs. Gap through both in one check -> 2/3 at once, never sold twice. After any TP: FIXED stop at entry −20 %
+  (no trailing). Before any TP the initial stop: PumpSwap −20 %, bonding curve −30 %, new pairs 0.30.
+  REMOVED: profit lock (+15 % -> +5 %), trailing (+15 % arm / −25 %, trail_tight, trail_after_time_stop), TP +50 %/+100 % and the
+  new-pairs STRONG ladder/trail (all tiers use the same ladder now). Constants TRAIL_*, LOCK_*, TAKE_PROFIT deleted.
+- **Kept:** main 60-min time stop (closes even in profit), new pairs NORMAL 30 min / STRONG 180 min time stop only if not in profit,
+  12 h max hold, volume decay (EXIT_RATIO, pools >= 2 h), new-pairs safety exits (dev sold, < 3 trades/10 min, RugCheck danger),
+  10 € ticket, position caps, learner bounds.
+- **Migration (`migrate_exit`, idempotent via `exit_regime`):** open real + shadow positions: TP hits derived from the fraction of the
+  initial qty already sold (old 1/2 sold = TP1 done, TP2 sells 1/6; >= 2/3 sold = both done); peak already >= +30 % -> `tp_passed`
+  -> fixed −20 % stop. Frozen plans keep their time stop / max hold. One `[REGIME] … migrated` log line per position.
+- **Regime marker:** `logs/exit_regime.jsonl` (regime, since, all parameters, logged_at) + `[REGIME] exit regime … active` in meme.log;
+  every new position / trade / shadow BUY-SELL-close record carries `exit_regime`; learner journal tags records (`legacy` before),
+  reports `by_exit_regime` and never compares before/after across regimes in its auto-revert check.
+- **Learner:** forbidden prefixes now also LOCK, TAKE_PROFIT, TP_, POST_TP, VC_, FAST_, NODATA, LIQ_PULL, RISK_, VOL_MIN_AGE,
+  newpairs.VOL_COLLAPSE/SAFETY, shadow.* (EXIT_*, TRAIL, STOP_LOSS, TIME_STOP, MAIN_EXIT, newpairs.EXIT were already forbidden).
+- **Why −50…−90 % despite the −20 % stop (01:25 order):** not the check frequency of the code path and not missing data. Checks already
+  ran 5×/min (~12 s, each ≤ 1.1 s); only 4 NO PRICE events, all recovered. The deep losses are one-tick gap crashes between two
+  checks: KIMCHI +18.8 % at 19:34:01 -> −98.1 % at 19:34:13; SpiderMan +58.8 % -> −60.1 % in 13 s; WOJAK NP −60 % at check 2/5.
+  Epoch 1: 13 of 77 closes worse than −35 %; most stops filled at −31…−35 % (12 s slippage past −20 %). The sim fill uses the
+  post-crash mark (+~0.5 % slippage), so it does not hide anything. Old volume decay was off for pools < 2 h (most trades).
+- **Fast exits (01:25):** risk loop 5 -> 14 checks/min (every 4 s, last start 53 s, hard stop 57 s < cron timeout 58 s; still
+  1 DexScreener batch + chain per check, pump.fun trades every 3rd check, GT fallback twice/min, NP safety every 3rd check) - stop
+  evaluated on every poll. New exits: **volume collapse** m5 < 10 % of the trailing-hour 5-min average AND mark < entry +10 %,
+  after >= 10 min hold, only if the hour had >= $5k volume (`EXIT_VC_*`); **liquidity pull** liquidity < 40 % of its peak while held
+  (`EXIT_LIQ_PULL=0.60`); **no-data** no price for >= 90 s -> close, SIMULATED at last mark −10 % (`EXIT_NODATA_*`, flag
+  `nodata_fill_assumed`, assumption). A single-candle rug can still fill far below −20 %; 4 s only shrinks the window 3×.
+- **Calibration (in-sample, GT 1m bars, gross, ticket units = sum of per-trade returns):** 877 trades with candles (154 real = all
+  real, 723 of 1457 shadow; GT fetch too slow for the rest). Baseline = new regime without VC. Chosen VC (0.10 / +10 % / 10 min /
+  $5k): cuts 63 trades, blocked loss 4.99, gain lost 1.18, net +3.82 (real +1.29, shadow +2.52). 10 cut trades later touched 2× entry
+  (data up to exit +4 h), but in none of them did the baseline keep a > +50 % result. Placeholder 0.25 / 0 % / 5 min / $1k was
+  net −2.58 (36 later-2× cut) -> rejected. Sim limits: 1m bars, stops fill at the stop price (optimistic vs a 4-s poll), no fees.
+- **Notable:** the kept main 60-min time stop fired 443× in the sim; 93 of those later touched 2× entry; without it +22.97 tickets
+  in-sample (partly marks at end of data). Not changed (order: keep time exits) - flagged to Dominic.
+- **Dashboard:** RISK / new-pairs texts, stop display (initial vs "Fix-Stop nach TP", no trailing), status "TP taken · runner" /
+  "TP passed · fixed stop", reason labels for volume collapse / liquidity pull / no-data.
+- **Tests:** tests/test_exit_regime.py (new: ladder, fixed stop, no trailing, migration, NP tiers, VC, liq pull, no-data, regime
+  marker, learner, shadow), test_profit_lock_cooldown.py (lock tests -> removal tests), test_meme_stops.py (GT fallback check index).
+- **Revert:** ~/.desk/backup_20261024_0125_exit_rebuild/ (meme.py, newpairs.py, shadow.py, learner.py, build_dashboard.py,
+  dash_savip.py, CHANGELOG, KNOWLEDGE, test_profit_lock_cooldown.py); delete tests/test_exit_regime.py.

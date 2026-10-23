@@ -69,7 +69,10 @@ PARAMS = {
 R7_PARTNER = {"rugpattern.R7_MIN_PCT": ("r7_share", "rugpattern.R7_MIN_SHARE"), "rugpattern.R7_MIN_SHARE": ("f1_pct", "rugpattern.R7_MIN_PCT")}
 FORBIDDEN_PREFIXES = ("meme.FIXED_TICKET", "meme.TICKET_PCT", "meme.MIN_TICKET", "meme.LIQ_CAP", "meme.MAX_OPEN", "meme.TOTAL_MAX_OPEN",
                       "newpairs.MAX_OPEN", "meme.STOP_LOSS", "meme.MAIN_EXIT", "meme.TRAIL", "meme.TIME_STOP", "meme.EXIT", "newpairs.EXIT",
-                      "meme.DAILY_DD", "meme.RC_", "meme.I18_", "meme.PAPER", "ALPACA", "alp_", "killswitch", "scan.COOLDOWN", "meme.JUDGE_BUDGET")
+                      "meme.DAILY_DD", "meme.RC_", "meme.I18_", "meme.PAPER", "ALPACA", "alp_", "killswitch", "scan.COOLDOWN", "meme.JUDGE_BUDGET",
+                      # USER ORDER 2026-10-24 01:24/01:25: exit regime (TP ladder, fixed post-TP stop, no trailing/lock), fast exits, check cadence
+                      "meme.LOCK", "meme.TAKE_PROFIT", "meme.TP_", "meme.POST_TP", "meme.VC_", "meme.FAST_", "meme.NODATA", "meme.LIQ_PULL",
+                      "meme.RISK_", "meme.VOL_MIN_AGE", "meme.regime", "newpairs.VOL_COLLAPSE", "newpairs.SAFETY", "shadow.")
 BASE = {}          # parameter -> code value captured by apply() before any override
 
 def forbidden(name):
@@ -284,7 +287,7 @@ def build_journal(j=None):
             if not fin: continue
             o = fin[-1]; old = j["real"].get(key)
             et, xt = _ts(o.get("entry_time")), _ts(o.get("exit_time"))
-            rec = {"epoch": ep, "sleeve": o.get("sleeve", "main"), "venue": o.get("venue"), "name": o.get("name"), "token": o.get("token"),
+            rec = {"epoch": ep, "exit_regime": o.get("exit_regime") or "legacy", "sleeve": o.get("sleeve", "main"), "venue": o.get("venue"), "name": o.get("name"), "token": o.get("token"),
                    "pool": o.get("pool"), "entry_time": o.get("entry_time"), "exit_time": o.get("exit_time"), "entry_type": _entry_type(o),
                    **_outcome(o, parts, o.get("exit_reason"), (xt - et) / 60 if et and xt else None)}
             feat = (old or {}).get("feat") or o.get("feat")
@@ -309,7 +312,7 @@ def build_journal(j=None):
         fin = [p for p in ps if not p.get("partial")]
         if not fin or sid in j["shadow"] and j["shadow"][sid].get("feat"): continue
         o = fin[-1]; et, xt = _ts(b.get("entry_time")), _ts(o.get("exit_time"))
-        rec = {"cat": b.get("cat"), "sleeve": b.get("sleeve", "main"), "venue": b.get("venue"), "name": b.get("name"), "token": b.get("token"),
+        rec = {"cat": b.get("cat"), "exit_regime": o.get("exit_regime") or b.get("exit_regime") or "legacy", "sleeve": b.get("sleeve", "main"), "venue": b.get("venue"), "name": b.get("name"), "token": b.get("token"),
                "pool": b.get("pool"), "entry_time": b.get("entry_time"), "exit_time": o.get("exit_time"),
                **_outcome(b, ps, o.get("reason"), (xt - et) / 60 if et and xt else None)}
         rec["feat"] = b.get("feat") or (join_features(b.get("pool"), b.get("token"), b.get("entry_time")) if b.get("sleeve") != "newpairs" else None)
@@ -403,8 +406,11 @@ def check_reverts(ov, trades, now_ts):
     pop = sorted([t for t in trades if t.get("pnl_pct") is not None], key=lambda t: _ts(t["entry_time"]))
     for c in ov.get("changes") or []:
         if c.get("status") != "active" or c.get("kind") == "revert": continue
-        at = _ts(c["at"]); after = [t for t in pop if _ts(t["entry_time"]) > at][:REVERT_N]
-        before = [t for t in pop if _ts(t["entry_time"]) <= at][-REVERT_N:]
+        at = _ts(c["at"]); post = [t for t in pop if _ts(t["entry_time"]) > at]
+        # USER ORDER 2026-10-24: never compare across exit regimes (exit_regime marker) - before/after must share one regime
+        reg = (post[0].get("exit_regime") or "legacy") if post else None
+        after = [t for t in post if (t.get("exit_regime") or "legacy") == reg][:REVERT_N]
+        before = [t for t in pop if _ts(t["entry_time"]) <= at and (t.get("exit_regime") or "legacy") == reg][-REVERT_N:]
         if len(after) < REVERT_N or len(before) < REVERT_MIN_BEFORE: continue
         sa, sb = stats([t["pnl_pct"] for t in after]), stats([t["pnl_pct"] for t in before])
         c["revert_check"] = {"after": sa, "before": sb, "at": _iso(now_ts)}
@@ -445,6 +451,7 @@ def run(dry=False, force=False, now=None):
     res = {"at": now.astimezone(BER).isoformat(timespec="seconds"), "dry": dry, "trades_real": len(j["real"]), "trades_main": len(real),
            "trades_main_with_features": len(with_feat), "shadow_trades": len(shadows), "overall": stats([t["pnl_pct"] for t in real]),
            "fast_stops": sum(1 for t in real if t.get("fast_stop")), "rugs": sum(1 for t in real if t.get("rug")),
+           "by_exit_regime": {r: stats([t["pnl_pct"] for t in real if (t.get("exit_regime") or "legacy") == r]) for r in sorted({t.get("exit_regime") or "legacy" for t in real})},
            "proposals": [], "rejected": {}, "reverts": []}
     # 1) auto-revert
     for c, sa, sb in check_reverts(ov, real, now_ts):

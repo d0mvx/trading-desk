@@ -45,29 +45,41 @@ VOL_MIN_AGE_H = 2.0       # volume-decay rule is off for pools younger than 2 h 
 # 2026-10-20 14:5x (user-approved): bonding-curve stop -20% -> -30% (curve coins swing 20%+ inside a minute; all 4 losers
 # were stopped at -20..-25% on curve noise). PumpSwap stays -20%. The stop is frozen per position at entry (o["stop_loss"]),
 # so a curve coin that graduates mid-trade keeps its -30%.
-STOP_LOSS = {"bonding_curve": 0.30, "pumpswap": 0.20}
-TRAIL_STOP = 0.25         # close all if mark <= peak mark x 0.75 ...
-TRAIL_ARM = 0.15          # ... but only once peak mark >= entry fill x 1.15: then peak x 0.75 >= entry x 0.8625, i.e. always
-# USER ORDER 2026-10-23 17:43 (Dominic, "Beides umsetzen"): PROFIT LOCK. Once the peak gain (peak mark vs entry fill) reached
-# +LOCK_TRIGGER, the effective stop is max(trailing stop, entry fill x (1 + LOCK_FLOOR)) -> a +15% winner can no longer close
-# at a loss. Main + new pairs (+ shadow, same exit_decision). Not learner-tunable (stops are not in the learner allowlist).
-LOCK_TRIGGER = 0.15
-LOCK_FLOOR = 0.05
-                          # ABOVE the hard stop; before arming only the hard stop applies (no -25% trail undercutting -30%)
-TAKE_PROFIT = 0.50        # sell half once when mark >= entry fill price x 1.50
-TIME_STOP_MIN = 60        # close all 60 min after entry
+STOP_LOSS = {"bonding_curve": 0.30, "pumpswap": 0.20}   # INITIAL stop (before any TP); new pairs: 0.30 (newpairs.py)
+TIME_STOP_MIN = 60        # main: close all 60 min after entry (also in profit - can cut a runner; kept per USER ORDER 2026-10-24)
+# ===== USER ORDER 2026-10-24 01:24 (Dominic) "gute Coins bis 2x+ laufen lassen" - EXIT REGIME tp30_60_fix20 (main + new pairs
+# + shadow, all through exit_decision): TP1 at +30% sells 1/3 of the INITIAL qty, TP2 at +60% another 1/3, the last 1/3 runs.
+# Once any TP hit: NO trailing stop; FIXED stop at entry fill x (1 - EXIT_POST_TP_STOP) for the rest. Before any TP the initial
+# stop (STOP_LOSS / new pairs 0.30) applies. The 2026-10-23 profit lock (+15% -> +5%) and every trailing stop are REMOVED.
+# Not learner-tunable (meme.EXIT* / meme.STOP_LOSS / meme.TIME_STOP are FORBIDDEN_PREFIXES in learner.py).
+EXIT_REGIME = "2026-10-24_0124_tp30_60_fix20"            # regime marker: on every position (exit_regime), trade record + logs/exit_regime.jsonl
+EXIT_REGIME_SINCE = "2026-10-24T01:24:00+02:00"
+EXIT_TP_LADDER = [[0.30, 1 / 3], [0.60, 1 / 3]]          # [gain vs entry fill, fraction of INITIAL qty]; cumulative, no double selling
+EXIT_POST_TP_STOP = 0.20                                 # after any TP: fixed stop at entry x 0.80
+# ===== USER ORDER 2026-10-24 01:25 (Dominic) "schneller reagieren" - FAST EXITS (evaluated on every fast check, see RISK_*) =====
+# volume collapse: DexScreener m5 volume vs the trailing hour (h1/12 per 5 min) collapses AND price is weak -> close all.
+# Calibrated 2026-10-24 on GT 1m candles of all real + shadow trades (in-sample), see CHANGELOG_research.md.
+EXIT_VC_ENABLED = True
+EXIT_VC_RATIO = 0.10          # m5 volume < 10% of the trailing-hour 5-min average (h1/12) ...  [calibrated 2026-10-24, see CHANGELOG]
+EXIT_VC_MAX_CHG = 0.10        # ... AND mark < entry fill x 1.10 (a runner above +10% is never cut by this; after TP1 the fixed stop rules)
+EXIT_VC_MIN_HOLD_MIN = 10     # not in the first 10 min after entry (m5/h1 still dominated by the pre-entry window)
+EXIT_VC_MIN_H1_USD = 5000.0   # no verdict when the trailing hour itself is thin (< $5k) - quiet pools consolidate, they are not collapsing
+# liquidity pull / no data
+EXIT_LIQ_PULL = 0.60          # pool liquidity (USD) < 40% of the highest seen while held -> emergency close
+EXIT_NODATA_S = 90            # no price from any source for >= 90 s -> emergency close ...
+EXIT_NODATA_HAIRCUT = 0.10    # ... SIMULATED at last known mark x 0.90 (assumption, flagged in the record: nodata_fill_assumed)
 # 2026-10-21 research I-18/V-01: SHADOW fields per final main pick (pick_shadow.py -> logs/pick_shadow.jsonl). They do NOT change
 # any decision except the I-18 gate: I18_GATE_ENABLED=True (approved by Dominic 2026-10-21 19:24) skips a pick when the twin share
 # >= I18_BLOCK_SHARE. Fail-open: timeout/missing data never block (logged). V-01 fresh count is shadow-only.
 I18_GATE_ENABLED = True; I18_BLOCK_SHARE = 0.50; I18_MIN_BUYS = 5; PICK_SHADOW_TIMEOUT_S = 6   # min buys = OOS sample rule
-# 2026-10-20 19:5x (user-approved upgrade 6): profit protection after a big run-up. Fractions are of the INITIAL qty:
-# 50% at +50% (as before) + another 25% at +100%; trailing tightens -25% -> -20% once the peak is >= +100%.
-MAIN_EXIT = {"tier": "main", "tp": [[0.50, 0.50], [1.00, 0.25]], "trail_arm": TRAIL_ARM, "trail": TRAIL_STOP, "trail_tight": [1.00, 0.20],
+MAIN_EXIT = {"tier": "main", "regime": EXIT_REGIME, "tp": EXIT_TP_LADDER, "post_tp_stop": EXIT_POST_TP_STOP,
              "time_stop_min": TIME_STOP_MIN, "time_stop_only_if_not_profit": False, "max_hold_min": None}
 # 2026-10-20 19:5x (upgrade 1): fast exits. cron starts `meme.py risk` every minute (flock -n .risk.lock, timeout 58); it runs
-# RISK_CHECKS checks RISK_STEP_S apart (0/12/24/36/48 s), never starts one after RISK_LAST_START_S, SIGALRM hard stop at RISK_HARD_S.
+# RISK_CHECKS checks RISK_STEP_S apart (0/4/8/../52 s), never starts one after RISK_LAST_START_S, SIGALRM hard stop at RISK_HARD_S.
 # Prices: DexScreener /tokens/v1 batch (30 mints/call; limit 300 req/min) + on-chain curve read; 0 GeckoTerminal calls.
-RISK_CHECKS, RISK_STEP_S, RISK_LAST_START_S, RISK_HARD_S = 5, 12, 50, 56
+# USER ORDER 2026-10-24 01:25: 5 -> 14 checks/min (0/4/../52 s) (every 4 s; a check takes <= ~1 s, 1 DexScreener batch + 1 chain read each,
+# ~40 DexScreener req/min incl. the shadow book << 300/min limit). Stops/TPs/fast exits are evaluated on every check.
+RISK_CHECKS, RISK_STEP_S, RISK_LAST_START_S, RISK_HARD_S = 14, 4, 53, 57
 STALE_GT_S, STALE_WARN_S = 20, 60   # 2026-10-20 risk audit: no price >= 20 s -> GT fallback; >= 60 s -> log every check
 POS_LOCK = f"{DESK}/.pos.lock"            # short lock around every read-modify-write of meme_positions.json (pipeline, newpairs, risk)
 # ---- JUDGE gates (replace old score > 0 rule) ----
@@ -235,6 +247,8 @@ def book_add(o, sleeve_max, ticket_pct, total_max=None):
         if any(keys & {x.get("token"), x.get("pool"), x.get("pool_original")} for x in p["open"]): return "already held (1 position per coin, no averaging)"
         cap = max(ticket_pct * meme_state(p)["equity"], FIXED_TICKET_USD) + 0.01   # fixed 10 EUR ticket allowed
         if float(o.get("cost_usd") or 0) > cap: return f"ticket ${o.get('cost_usd')} > cap ${cap:.2f}"
+        o.setdefault("exit_regime", EXIT_REGIME)
+        if o.get("exit"): o["exit"] = regime_plan(o["exit"])
         p["open"].append(o); save_pos(p); trade_log({"type": "BUY", **o})
     return None
 
@@ -277,7 +291,7 @@ def ds_prices(positions, timeout=10):
             v = pick.get("volume") or {}
             out[o["pool"]] = {"base_token_price_usd": px, "quote_token_price_usd": (px / pn) if pn else o.get("sol_usd"),
                               "reserve_in_usd": (pick.get("liquidity") or {}).get("usd"), "market_cap_usd": pick.get("marketCap") or pick.get("fdv"),
-                              "volume_usd": {"h1": v.get("h1"), "h6": v.get("h6"), "h24": v.get("h24")}, "_src": "dexscreener", "_migrated_to": mig,
+                              "volume_usd": {"m5": v.get("m5"), "h1": v.get("h1"), "h6": v.get("h6"), "h24": v.get("h24")}, "_src": "dexscreener", "_migrated_to": mig,
                               "pool_created_at": dt.datetime.fromtimestamp(pick["pairCreatedAt"] / 1000, UTC).isoformat() if pick.get("pairCreatedAt") else None}
     if errs and not out: raise errs[0]
     return out
@@ -375,59 +389,115 @@ def close_position(o, a, reason, p, frac=1.0):
     except Exception as e: log(f"[RISK] cooldown write failed: {e}")
 
 # ---------------- EXIT rules (shared by the real book and the shadow book) ----------------
-def exit_plan(o):
-    """NEW PAIRS positions carry their tier plan (frozen at entry); main-sleeve positions use MAIN_EXIT.
-    Legacy main positions (before 2026-10-20 19:5x) get qty_initial/tp_hits derived from tp_done (half already sold)."""
-    if o.get("exit"): return o["exit"]
-    if "qty_initial" not in o: o["qty_initial"] = o["qty"] * (2 if o.get("tp_done") else 1)
-    if "tp_hits" not in o: o["tp_hits"] = [0.5] if o.get("tp_done") else []
-    return MAIN_EXIT
+def regime_plan(old=None):
+    """Exit plan of the current regime (EXIT_REGIME). A plan of an older regime (frozen NEW PAIRS tier plan, shadow copy of the old
+    MAIN_EXIT) keeps tier / time stop / max hold, gets the current TP ladder + fixed post-TP stop; all trailing/lock keys dropped."""
+    if not old: return dict(MAIN_EXIT)
+    if old.get("regime") == EXIT_REGIME: return old
+    keep = {k: old[k] for k in ("tier", "time_stop_min", "time_stop_only_if_not_profit", "max_hold_min") if k in old}
+    return {**keep, "regime": EXIT_REGIME, "tp": [list(x) for x in EXIT_TP_LADDER], "post_tp_stop": EXIT_POST_TP_STOP}
 
-def exit_decision(o, mark, ratio=None, vmode="", safety=None, t=None):
-    """One exit check at `mark`. Updates peak/tp_hits on o. Returns (frac or None, text). Order (first match wins):
-    hard stop -> safety (new pairs) -> trailing (armed at +trail_arm; tightened to trail_tight[1] once peak >= +trail_tight[0];
-    force-armed after the time stop while in profit if trail_after_time_stop) -> time stop (optionally only if not in profit) ->
-    max hold -> next take-profit tier (fraction of INITIAL qty) -> volume decay."""
+def _cum(ladder):
+    out, c = [], 0.0
+    for lvl, f in ladder: c += f; out.append((lvl, c))
+    return out
+
+def migrate_exit(o, t=None):
+    """Move a position into EXIT_REGIME once (idempotent; o["exit_regime"] marks it). No double selling: TP hits are derived from the
+    fraction of the INITIAL qty already sold (old +50%/+100% partials count); a position whose peak already passed TP1 gets the fixed
+    post-TP stop (tp_passed). Returns a log text if a pre-existing position was migrated, else None."""
+    if o.get("exit_regime") == EXIT_REGIME: return None
+    if "qty_initial" not in o: o["qty_initial"] = o["qty"] * (2 if o.get("tp_done") else 1)   # legacy (before 2026-10-20 19:5x)
+    old_hits = list(o.get("tp_hits") or [])
+    if o.get("exit"): o["exit"] = regime_plan(o["exit"])
+    ladder = (o.get("exit") or MAIN_EXIT)["tp"]
+    qi = o["qty_initial"] or o["qty"]; sold = max(0.0, 1 - o["qty"] / qi) if qi else 0.0
+    o["tp_hits"] = [round(lvl, 2) for lvl, c in _cum(ladder) if c <= sold + 1e-6]
+    peak_g = (o.get("peak_price") or o["entry_mid"]) / o["entry_price"] - 1
+    o["tp_passed"] = bool(o["tp_hits"]) or peak_g >= ladder[0][0]
+    o["exit_regime"] = EXIT_REGIME
+    try: before = dt.datetime.fromisoformat(o["entry_time"]) < dt.datetime.fromisoformat(EXIT_REGIME_SINCE)
+    except (KeyError, TypeError, ValueError): before = False
+    pre = bool(old_hits) or sold > 1e-6 or before
+    if not pre: return None
+    o["exit_regime_migrated"] = (t or now()).isoformat()
+    return (f"[REGIME] {o.get('name')}: migrated to {EXIT_REGIME} (sold {sold:.0%} of initial, old TP hits {old_hits} -> {o['tp_hits']}, "
+            f"peak {peak_g:+.0%}, {'fixed stop -' + format(EXIT_POST_TP_STOP, '.0%') + ' (TP passed)' if o['tp_passed'] else 'initial stop'})")
+
+def exit_plan(o):
+    """Current-regime plan of a position (migrates it on first use)."""
+    msg = migrate_exit(o)
+    if msg:
+        try: log(msg + (" [shadow]" if o.get("shadow") else ""))
+        except Exception: pass
+    return o.get("exit") or MAIN_EXIT
+
+def stop_level(o, ex=None):
+    """(stop price, stop fraction, kind): initial stop before any TP, fixed post-TP stop afterwards."""
+    ex = ex or exit_plan(o)
+    if o.get("tp_hits") or o.get("tp_passed"):
+        sl = ex.get("post_tp_stop", EXIT_POST_TP_STOP); return o["entry_price"] * (1 - sl), sl, "fixed after TP"
+    sl = o.get("stop_loss") or STOP_LOSS.get(o.get("venue"), 0.20); return o["entry_price"] * (1 - sl), sl, "initial"
+
+def fast_exit(o, mark, flow, held_min):
+    """USER ORDER 2026-10-24 01:25 fast exits from the live pool snapshot `flow` ({m5, h1, liq}). Returns reason or None."""
+    if not flow: return None
+    liq = flow.get("liq")
+    if liq:
+        o["liq_peak"] = max(float(o.get("liq_peak") or 0), float(liq))
+        if EXIT_LIQ_PULL and liq < o["liq_peak"] * (1 - EXIT_LIQ_PULL):
+            return f"liquidity pull: pool liquidity ${liq:,.0f} < {1 - EXIT_LIQ_PULL:.0%} of held peak ${o['liq_peak']:,.0f}"
+    m5, h1 = flow.get("m5"), flow.get("h1")
+    if EXIT_VC_ENABLED and m5 is not None and h1 and held_min >= EXIT_VC_MIN_HOLD_MIN and float(h1) >= EXIT_VC_MIN_H1_USD:
+        r = float(m5) / (float(h1) / 12); o["vc_ratio"] = round(r, 3)
+        chg = mark / o["entry_price"] - 1
+        if r < EXIT_VC_RATIO and chg < EXIT_VC_MAX_CHG:
+            return f"volume collapse: m5 ${float(m5):,.0f} = {r:.2f}x of hour avg (< {EXIT_VC_RATIO}) and mark {chg:+.1%} < {EXIT_VC_MAX_CHG:+.0%}"
+    return None
+
+def exit_decision(o, mark, ratio=None, vmode="", safety=None, t=None, flow=None):
+    """One exit check at `mark` (EXIT_REGIME). Updates peak/tp_hits on o. Returns (frac or None, text). Order (first match wins):
+    stop (initial, or fixed entry -EXIT_POST_TP_STOP once any TP hit) -> safety (new pairs) -> fast exits (liquidity pull, volume
+    collapse) -> time stop (optionally only if not in profit) -> max hold -> take-profit ladder (cumulative fractions of the INITIAL
+    qty; several levels in one check sell together) -> volume decay. No trailing stop, no profit lock."""
     t = t or now()
+    ex = exit_plan(o)
     o["peak_price"] = max(o.get("peak_price") or o["entry_mid"], mark)
     entry = o["entry_price"]; held_min = (t - dt.datetime.fromisoformat(o["entry_time"])).total_seconds() / 60
     chg = mark / entry - 1; peak_g = o["peak_price"] / entry - 1
-    sl = o.get("stop_loss") or STOP_LOSS.get(o.get("venue"), 0.20)
-    ex = exit_plan(o)
-    t_arm, t_stop = ex.get("trail_arm", TRAIL_ARM), ex.get("trail", TRAIL_STOP)
-    tight = ex.get("trail_tight")
-    if tight and peak_g >= tight[0]: t_stop = min(t_stop, tight[1])
     ts_min = ex.get("time_stop_min", TIME_STOP_MIN); ts_profit_ok = ex.get("time_stop_only_if_not_profit", False)
     max_hold = ex.get("max_hold_min"); ladder = ex.get("tp") or []
-    armed = peak_g >= t_arm; forced = False
-    if ex.get("trail_after_time_stop") and held_min >= ts_min and chg > 0 and not armed: armed = forced = True
     tag = f" [NEW PAIR {o.get('tier', '').upper()}]" if o.get("sleeve") == "newpairs" else ""
     hits = o.setdefault("tp_hits", [])
-    nxt = ladder[len(hits)] if len(hits) < len(ladder) else None
-    if mark <= entry * (1 - sl):
-        return 1.0, f"stop-loss: mark {chg:+.1%} vs entry <= -{sl:.0%}{tag}"
+    stop_px, sl, kind = stop_level(o, ex)
+    if mark <= stop_px:
+        return 1.0, f"stop-loss: mark {chg:+.1%} vs entry <= -{sl:.0%}" + (" (fixed after TP)" if kind != "initial" else "") + tag
     if safety:
         return 1.0, f"{safety} (mark {chg:+.1%}){tag}"
-    if armed and mark <= o["peak_price"] * (1 - t_stop):
-        how = "after time stop, in profit" if forced else f"armed at +{t_arm:.0%}" + (f", tightened at peak +{tight[0]:.0%}" if tight and peak_g >= tight[0] else "")
-        return 1.0, f"trailing stop: mark {mark/o['peak_price']-1:+.1%} from peak <= -{t_stop:.0%} ({how}){tag}"
-    l_trig, l_floor = ex.get("lock_trigger", LOCK_TRIGGER), ex.get("lock_floor", LOCK_FLOOR)
-    locked = l_trig is not None and peak_g >= l_trig
-    if locked and mark <= entry * (1 + l_floor):
-        return 1.0, f"profit lock: mark {chg:+.1%} vs entry <= +{l_floor:.0%} (peak {peak_g:+.0%} >= +{l_trig:.0%}){tag}"
+    fx = fast_exit(o, mark, flow, held_min)
+    if fx:
+        return 1.0, f"{fx}{tag}"
     if held_min >= ts_min and not (ts_profit_ok and chg > 0):
         return 1.0, f"time stop: held {held_min:.0f} min >= {ts_min} (mark {chg:+.1%}){tag}"
     if max_hold and held_min >= max_hold:
         return 1.0, f"max hold {max_hold} min reached (mark {chg:+.1%}){tag}"
-    if nxt and mark >= entry * (1 + nxt[0]):
-        frac = min(1.0, nxt[1] * (o.get("qty_initial") or o["qty"]) / o["qty"]); hits.append(round(nxt[0], 2)); o["tp_done"] = True
-        return (frac if frac < 0.999 else 1.0), f"take-profit {len(hits)}/{len(ladder)}: {nxt[1]:.0%} of initial at {chg:+.1%} >= +{nxt[0]:.0%}{tag}"
+    due = [(lvl, c) for lvl, c in _cum(ladder)[len(hits):] if mark >= entry * (1 + lvl)]
+    if due:
+        qi = o.get("qty_initial") or o["qty"]; target = due[-1][1]
+        sell = target * qi - (qi - o["qty"])            # cumulative target minus what is already sold -> never double-sells
+        for lvl, _ in due: hits.append(round(lvl, 2))
+        o["tp_done"] = True; o["tp_passed"] = True
+        lv = "+".join(f"+{l:.0%}" for l, _ in due)
+        if sell <= 1e-9 * qi:
+            return None, f"take-profit {len(hits)}/{len(ladder)} at {lv} already covered by earlier sells (no sale); mark {chg:+.1%}{tag}"
+        frac = min(1.0, sell / o["qty"])
+        return (frac if frac < 0.999 else 1.0), f"take-profit {len(hits)}/{len(ladder)}: {lv} -> sold up to {target:.0%} of initial at {chg:+.1%}{tag}"
     if ratio is not None and ratio < EXIT_RATIO:
         return 1.0, f"volume decay {vmode} = {ratio:.2f} < {EXIT_RATIO}{tag}"
     vr = f"vol ratio {ratio:.2f} [{vmode}]" if ratio is not None else vmode
-    return None, (f"mark {mark:.10g} ({chg:+.1%} vs entry, SL -{sl:.0%}, trail -{t_stop:.0%} " + ("armed" if armed else "off (arms +" + format(t_arm, ".0%") + ")")
-                  + f", peak {o['peak_price']:.10g} ({peak_g:+.0%})" + (f", lock >= +{l_floor:.0%}" if locked else "") + f", TP {len(hits)}/{len(ladder)}, {held_min:.0f}/{ts_min} min"
-                  + (" (only if not in profit)" if ts_profit_ok else "") + f", {vr})")
+    vc = f", m5/hour {o['vc_ratio']:.2f}" if o.get("vc_ratio") is not None else ""
+    return None, (f"mark {mark:.10g} ({chg:+.1%} vs entry, SL -{sl:.0%} {kind}, no trailing, peak {o['peak_price']:.10g} ({peak_g:+.0%}), "
+                  f"TP {len(hits)}/{len(ladder)}, {held_min:.0f}/{ts_min} min" + (" (only if not in profit)" if ts_profit_ok else "") + f", {vr}{vc})")
 
 # ---------------- JUDGE helpers ----------------
 def pick_shadow_hook(top, gate_enabled=None):
@@ -818,13 +888,13 @@ def risk_check(i, errs):
     data = fast_prices(p0["open"], errs=errs)
     stale = [o["pool"] for o in p0["open"] if o["pool"] not in data and o.get("price_missing_since")
              and (now() - dt.datetime.fromisoformat(o["price_missing_since"])).total_seconds() >= STALE_GT_S]
-    if stale and i in (0, 2):   # fallback: <= 2 GeckoTerminal calls/min, only while a held position has no price
+    if stale and i in (0, RISK_CHECKS // 2):   # fallback: <= 2 GeckoTerminal calls/min, only while a held position has no price
         try:
             for k, v in pools_multi(stale, deadline=time.time() + 8).items(): data[k] = {**v, "_src": "geckoterminal fallback"}
         except Exception as e: errs.append(f"gt fallback {type(e).__name__}")
     saf, rc_at = {}, {}
     for o in p0["open"]:
-        if o.get("sleeve") == "newpairs" and o["pool"] in data:
+        if o.get("sleeve") == "newpairs" and o["pool"] in data and i % 3 == 0:   # pump.fun trades call: every 12 s as before (14 checks/min)
             try:
                 import newpairs; saf[o["pool"]] = newpairs.position_safety(o); rc_at[o["pool"]] = o.get("np_rc_at")
             except Exception as e: errs.append(f"new-pair safety {type(e).__name__}")
@@ -838,18 +908,25 @@ def risk_check(i, errs):
                 o.setdefault("price_missing_since", now().isoformat())
                 miss_s = (now() - dt.datetime.fromisoformat(o["price_missing_since"])).total_seconds()
                 o["stale_s"] = round(miss_s)
+                if EXIT_NODATA_S and miss_s >= EXIT_NODATA_S and o.get("last_price"):   # USER ORDER 2026-10-24 01:25: no-data emergency exit
+                    px = float(o["last_price"]) * (1 - EXIT_NODATA_HAIRCUT); o["nodata_fill_assumed"] = True; exit_plan(o)
+                    a0 = {"base_token_price_usd": px, "quote_token_price_usd": o.get("sol_usd"), "reserve_in_usd": o.get("liq_last") or 0, "market_cap_usd": 0}
+                    close_position(o, a0, f"no-data emergency exit: no price for {miss_s:.0f}s >= {EXIT_NODATA_S}s (SIMULATED fill at last mark -{EXIT_NODATA_HAIRCUT:.0%}) [check {i+1}/{RISK_CHECKS}]", p)
+                    save_pos(p); continue
                 if i == 0 or miss_s >= STALE_WARN_S:
                     log(f"[RISK] {ltag(o.get('token'))}{o['name']}: NO PRICE for {miss_s:.0f}s (check {i+1}) -> stops cannot fire until a price arrives" + (" [STALE]" if miss_s >= STALE_WARN_S else ""))
                 continue
             o.pop("price_missing_since", None); o.pop("stale_s", None)
             if a.get("_migrated_to") and o["venue"] == "bonding_curve":
                 log(f"[RISK] {o['name']}: graduated -> pricing/exit on PumpSwap pair {a['_migrated_to']}")
-                o["pool_original"] = o["pool"]; o["pool"] = a["_migrated_to"]; o["venue"] = "pumpswap"
+                o["pool_original"] = o["pool"]; o["pool"] = a["_migrated_to"]; o["venue"] = "pumpswap"; o.pop("liq_peak", None)
             mark = float(a["base_token_price_usd"]); v = a.get("volume_usd") or {}
+            flow = pool_flow(a)
+            if flow.get("liq"): o["liq_last"] = flow["liq"]
             ratio, vmode = vol_decay(v, a.get("pool_created_at"))
             o["last_price"] = mark; o["last_check"] = now().isoformat()
             o["vol_ratio"] = round(ratio, 3) if ratio is not None else None; o["vol_mode"] = vmode
-            frac, why = exit_decision(o, mark, ratio, vmode, saf.get(o.get("pool_original") or o["pool"]) or saf.get(o["pool"]))
+            frac, why = exit_decision(o, mark, ratio, vmode, saf.get(o.get("pool_original") or o["pool"]) or saf.get(o["pool"]), flow=flow)
             n += 1
             if frac:
                 close_position(o, a, why + f" [check {i+1}/{RISK_CHECKS}]", p, frac=frac); save_pos(p)
@@ -858,6 +935,33 @@ def risk_check(i, errs):
                 log(f"[RISK] {ltag(o.get('token'))}{o['name']}{tag} {why} ok [{a.get('_src', 'dexscreener')}] (fast exits: {RISK_CHECKS} checks/min)")
         save_pos(p)
     return n
+
+def pool_flow(a):
+    """Live pool snapshot for fast_exit(): DexScreener only (m5/h1 volume, liquidity USD); other sources -> {} (no verdict)."""
+    if (a or {}).get("_src") != "dexscreener": return {}
+    v = a.get("volume_usd") or {}
+    return {"m5": v.get("m5"), "h1": v.get("h1"), "liq": float(a["reserve_in_usd"]) if a.get("reserve_in_usd") else None}
+
+REGIME_LOG = f"{DESK}/logs/exit_regime.jsonl"
+def regime_marker():
+    """Append one {"type": "EXIT_REGIME", ...} line (timestamped) to logs/exit_regime.jsonl + meme.log when EXIT_REGIME is new."""
+    try:
+        last = None
+        if os.path.exists(REGIME_LOG):
+            for l in open(REGIME_LOG):
+                try: last = json.loads(l).get("regime")
+                except ValueError: pass
+        if last == EXIT_REGIME: return False
+        rec = {"type": "EXIT_REGIME", "regime": EXIT_REGIME, "since": EXIT_REGIME_SINCE, "logged_at": now().isoformat(), "tp": EXIT_TP_LADDER,
+               "post_tp_stop": EXIT_POST_TP_STOP, "initial_stop": STOP_LOSS, "newpairs_initial_stop": 0.30, "trailing": None, "profit_lock": None,
+               "vol_collapse": {"enabled": EXIT_VC_ENABLED, "ratio": EXIT_VC_RATIO, "max_chg": EXIT_VC_MAX_CHG, "min_hold_min": EXIT_VC_MIN_HOLD_MIN, "min_h1_usd": EXIT_VC_MIN_H1_USD},
+               "liq_pull": EXIT_LIQ_PULL, "nodata_s": EXIT_NODATA_S, "checks_per_min": RISK_CHECKS, "step_s": RISK_STEP_S}
+        os.makedirs(os.path.dirname(REGIME_LOG), exist_ok=True)
+        with open(REGIME_LOG, "a") as f: f.write(json.dumps(rec) + "\n")
+        log(f"[REGIME] exit regime {EXIT_REGIME} active (since {EXIT_REGIME_SINCE}): TP {EXIT_TP_LADDER}, fixed stop -{EXIT_POST_TP_STOP:.0%} after TP, no trailing/lock, fast exits {RISK_CHECKS}/min")
+        return True
+    except Exception as e:
+        log(f"[REGIME] marker write failed: {e}"); return False
 
 def dd_check(errs):
     eq, ms = desk_equity()
@@ -875,6 +979,7 @@ def risk():
     """Fast exits (upgrade 1): RISK_CHECKS checks per cron minute, RISK_STEP_S apart, real book first, then the shadow book.
     Exit rules: exit_decision(). Daily 4% drawdown rule once per minute (after check 1; needs the Alpaca P&L call)."""
     t0 = time.time(); signal.alarm(RISK_HARD_S); errs, done, durs = [], 0, []
+    regime_marker()
     for i in range(RISK_CHECKS):
         wait = t0 + i * RISK_STEP_S - time.time()
         if wait > 0: time.sleep(wait)

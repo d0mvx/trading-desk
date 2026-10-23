@@ -35,11 +35,12 @@ INIT_REAL_TOKENS = 793_100_000 * 10**6; TOTAL_SUPPLY_UI = 1_000_000_000
 # ---- size / exits ----
 TICKET_PCT = 0.015; NP_MAX_OPEN = 3; TOTAL_MAX_OPEN = 8   # 2026-10-21 user order: more trades
 EXIT_TIERS = {   # gains relative to entry fill; tp fractions are of the INITIAL qty
- # 2026-10-20 19:5x (user-approved upgrade 6): NORMAL + 25% of initial at +100%, trail -25% -> -20% once peak >= +100%; the 30-min
- # time stop now applies only if NOT in profit -> in profit after 30 min the trailing stop takes over (force-armed); 12 h cap as STRONG.
- "normal": {"tier": "normal", "tp": [[0.50, 0.50], [1.00, 0.25]], "trail_arm": 0.15, "trail": 0.25, "trail_tight": [1.00, 0.20], "time_stop_min": 30,
-            "time_stop_only_if_not_profit": True, "trail_after_time_stop": True, "max_hold_min": 720},
- "strong": {"tier": "strong", "tp": [[1.00, 1/3], [3.00, 1/3]], "trail_arm": 0.50, "trail": 0.35, "time_stop_min": 180, "time_stop_only_if_not_profit": True, "max_hold_min": 720}}
+ # USER ORDER 2026-10-24 01:24 (Dominic): both tiers use the main regime (meme.EXIT_REGIME): TP1 +30% 1/3, TP2 +60% 1/3, last 1/3
+ # runs; after any TP a FIXED stop at entry -20%; no trailing (the old trail/trail_tight/trail_after_time_stop and the STRONG
+ # +100%/+300% ladder with a 35% trail are removed). Initial stop 0.30 (open_position). Time stops/max hold unchanged.
+ "normal": {"tier": "normal", "regime": None, "tp": None, "post_tp_stop": None, "time_stop_min": 30, "time_stop_only_if_not_profit": True, "max_hold_min": 720},
+ "strong": {"tier": "strong", "regime": None, "tp": None, "post_tp_stop": None, "time_stop_min": 180, "time_stop_only_if_not_profit": True, "max_hold_min": 720}}
+# the full plan (regime, tp, post_tp_stop) is filled in by meme.regime_plan(EXIT_TIERS[tier]) at entry (single source: meme.EXIT_*)
 SAFETY_RC_EVERY_S = 300; VOL_COLLAPSE_MIN_TRADES_10M = 3
 # shadow book (upgrade 3): narrative passers that fail exactly ONE safety gate, or are blocked by max-open / one buy per run
 SHADOW_RC_NEW = 2          # extra RugCheck calls per run to confirm a 1-cheap-fail coin has no RugCheck fail (cache shared, 10 min)
@@ -437,7 +438,7 @@ def shadow_entries(passers, buy, reason, singles, dry, meme):
     for k, sc, e, fr, note in picks:
         c = cs.get(e["bonding_curve"]); sol = sol_usd_of(fr)
         if not c or not c.get("price_sol") or not sol or c.get("complete"): continue
-        price = c["price_sol"] * sol; liq = c["real_sol"] * sol; tier = EXIT_TIERS["strong" if sc >= STRONG else "normal"]
+        price = c["price_sol"] * sol; liq = c["real_sol"] * sol; tier = meme.regime_plan(EXIT_TIERS["strong" if sc >= STRONG else "normal"])
         ents.append({"cat": k, "note": note, "pool": e["bonding_curve"], "token": e["mint"], "name": f"{e['symbol'][:16]} / SOL", "venue": "bonding_curve",
                      "price": price, "sol": sol, "liq": liq, "mcap": price * TOTAL_SUPPLY_UI, "ticket": round(min(meme.FIXED_TICKET_USD, meme.LIQ_CAP * liq), 2),
                      "exit": tier, "tier": tier["tier"], "sleeve": "newpairs", "creator": e["creator"], "narrative_score": sc, "url": f"https://pump.fun/coin/{e['mint']}"})
@@ -455,7 +456,7 @@ def enter(pick, dry, meme):
     if not cs or not cs.get("price_sol") or not sol: return None, "no price"
     if cs.get("complete"): return None, "graduated just now"
     price = cs["price_sol"] * sol; liq = cs["real_sol"] * sol; mc = price * TOTAL_SUPPLY_UI
-    tier = EXIT_TIERS["strong" if sc >= STRONG else "normal"]
+    tier = meme.regime_plan(EXIT_TIERS["strong" if sc >= STRONG else "normal"])
     if dry: return None, f"DRY: would buy {e['symbol']} score {sc} tier {tier['tier']}"
     try:
         if True:   # sizing reads the book; the locked add + all cap re-checks happen in meme.book_add (2026-10-20 risk audit)
