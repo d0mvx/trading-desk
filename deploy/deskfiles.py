@@ -10,8 +10,11 @@ DENY = ["*.env", "**/*.env", "*.env.*", "alpaca.env", "sec.env", "jev.env", "das
         "**/__pycache__/**", "*.pyc", "**/*.pyc", ".*.lock", "**/.*.lock", "*.tmp", "**/*.tmp", "**/.*.tmp", ".gt_calls"]
 ALLOW_DOTENV = {"jev.env.example", "sec.env.example", "dashboard/apple-touch-icon.png"}   # static icon herenow_publish needs
 
+# USER ORDER 2026-10-23 19:15/19:23: archived meme epochs (trade books, no secrets) are STATE (learner reads them); rest of archive/ stays denied
+ALLOW_GLOB = ["archive/meme_epoch*_*.json", "archive/history_epoch*_*.csv"]
+
 def denied(rel):
-    if rel in ALLOW_DOTENV: return False
+    if rel in ALLOW_DOTENV or any(fnmatch.fnmatch(rel, p) for p in ALLOW_GLOB): return False
     return any(fnmatch.fnmatch(rel, p) for p in DENY)
 
 def resolve(kind, desk):
