@@ -1,6 +1,6 @@
 """USER ORDER 2026-10-24 13:34 (+13:37/13:38): the six entry rules, position limits 8/2/10, safe sizing. Paper only; no network."""
 import os, sys, json, unittest, datetime as dt
-sys.path.insert(0, os.path.dirname(__file__)); from _iso import iso_meme, pos
+sys.path.insert(0, os.path.dirname(__file__)); from _iso import iso_meme, pos, rules_only
 import rugpattern
 
 def cand(**kw):
@@ -8,7 +8,7 @@ def cand(**kw):
     c.update(kw); return c
 
 class Rule1Liquidity(unittest.TestCase):
-    def setUp(self): self.m, self.tmp = iso_meme(); import entry_rules; self.er = entry_rules
+    def setUp(self): self.m, self.tmp = iso_meme(); rules_only(self); import entry_rules; self.er = entry_rules
     def test_pumpswap_40k_boundary(self):
         self.assertIsNotNone(self.er.liq_gate("pumpswap", 39_999)); self.assertIsNone(self.er.liq_gate("pumpswap", 40_000))
     def test_curve_derived_liquidity_cannot_reach_40k(self):
@@ -19,7 +19,7 @@ class Rule1Liquidity(unittest.TestCase):
         f, _ = self.er.main_gates(cand(liquidity_usd=20_000)); self.assertTrue(f[0].startswith("order rule 1"))
 
 class Rule2Volume(unittest.TestCase):
-    def setUp(self): self.m, self.tmp = iso_meme(); import entry_rules; self.er = entry_rules
+    def setUp(self): self.m, self.tmp = iso_meme(); rules_only(self); import entry_rules; self.er = entry_rules
     def test_50k_boundary(self):
         self.assertIsNotNone(self.er.vol_gate(49_999)); self.assertIsNone(self.er.vol_gate(50_000))
     def test_missing_volume_allowed_with_note(self):
@@ -30,6 +30,7 @@ class Rule2Volume(unittest.TestCase):
         self.assertIsNone(rugpattern.chase_verdict(rugpattern.chase_metrics(m1, now), newpairs=False))
 
 class Rule3MidRocket(unittest.TestCase):
+    def setUp(self): self.m, self.tmp = iso_meme(); rules_only(self)
     def candles(self, greens, step):
         now = 100_000.0; px = 1.0; out = []
         for i in range(10 - greens):   # flat red/neutral candles first
@@ -50,7 +51,7 @@ class Rule3MidRocket(unittest.TestCase):
         m, tmp = iso_meme(); self.assertIsNotNone(m.chase_cooldown(["order rule 3 · mid-rocket"], ["K"], "K"))
 
 class Rule4SellsVsBuys(unittest.TestCase):
-    def setUp(self): self.m, self.tmp = iso_meme(); import entry_rules; self.er = entry_rules
+    def setUp(self): self.m, self.tmp = iso_meme(); rules_only(self); rules_only(self); import entry_rules; self.er = entry_rules
     def test_exactly_2_to_1_blocked_m15_and_m5(self):
         self.assertIsNotNone(self.er.bs_gate({"m15": {"buys": 10, "sells": 20}})); self.assertIsNotNone(self.er.bs_gate({"m5": {"buys": 5, "sells": 10}}))
     def test_just_under_2_to_1_ok(self): self.assertIsNone(self.er.bs_gate({"m15": {"buys": 10, "sells": 19}}))
@@ -66,93 +67,37 @@ class Rule4SellsVsBuys(unittest.TestCase):
 
 class Rule5LossStreak(unittest.TestCase):
     def setUp(self): self.m, self.tmp = iso_meme(); import entry_rules; self.er = entry_rules; self.t0 = dt.datetime.now(dt.timezone.utc)
-    def test_two_losses_pause_10_min_then_resume(self):
+    def test_two_losses_pause_60_min_then_resume(self):   # 21:27: pause back to 60 min (13:34 value; 13:57 had 10)
         er = self.er; er.record_close(-0.5, "A", self.t0); self.assertIsNone(er.paused(self.t0))
         s = er.record_close(-0.2, "B", self.t0 + dt.timedelta(minutes=1)); self.assertEqual(s["streak"], 2)
         self.assertIsNotNone(er.paused(self.t0 + dt.timedelta(minutes=2)))
-        self.assertEqual(er.PAUSE_MIN, 10)
-        self.assertIsNotNone(er.paused(self.t0 + dt.timedelta(minutes=10)))   # lock starts at the 2nd loss (t0+1): runs until t0+11
-        self.assertIsNone(er.paused(self.t0 + dt.timedelta(minutes=12)))
+        self.assertEqual(er.PAUSE_MIN, 60)
+        self.assertIsNotNone(er.paused(self.t0 + dt.timedelta(minutes=60)))   # lock starts at the 2nd loss (t0+1): runs until t0+61
+        self.assertIsNone(er.paused(self.t0 + dt.timedelta(minutes=62)))
         self.assertEqual(er._load()["streak"], 0)
-    def test_win_resets_streak(self):
-        er = self.er; er.record_close(-1, "A", self.t0); er.record_close(0.3, "W", self.t0); s = er.record_close(-1, "B", self.t0)
-        self.assertEqual(s["streak"], 1); self.assertIsNone(er.paused(self.t0))
-    def test_state_persisted_in_file(self):
-        er = self.er; er.record_close(-1, "A", self.t0); er.record_close(-1, "B", self.t0)
-        d = json.load(open(er.STREAK_FILE)); self.assertTrue(d["paused_until"]); self.assertEqual(d["streak"], 2)
-    def test_closes_during_pause_not_counted(self):
-        er = self.er; er.record_close(-1, "A", self.t0); er.record_close(-1, "B", self.t0)
-        until = er._load()["paused_until"]; er.record_close(-1, "C", self.t0 + dt.timedelta(minutes=5)); self.assertEqual(er._load()["paused_until"], until)
-    def test_close_position_hook_tp_partial_is_not_a_loss(self):
-        m = self.m; p = m.load_pos(); o = pos("TP", cost=10.0); p["open"] = [o]
-        a = {"base_token_price_usd": 1.6, "reserve_in_usd": 200_000, "quote_token_price_usd": 150.0}
-        m.close_position(o, a, "take profit 1", p, frac=1/3)                 # partial at +60%: a winner, never a loss
-        self.assertEqual(self.er._load()["streak"], 0)
-        a2 = {"base_token_price_usd": 0.97, "reserve_in_usd": 200_000, "quote_token_price_usd": 150.0}
-        m.close_position(o, a2, "stop-loss", p)                               # remainder stopped at a small loss, position total still > 0 -> win
-        tot = sum(x["pnl"] for x in p["closed"]); self.assertGreater(tot, 0); self.assertEqual(self.er._load()["streak"], 0)
-    def test_close_position_two_real_losses_pause(self):
-        m = self.m; p = m.load_pos(); p["open"] = [pos("L1"), pos("L2")]
-        a = {"base_token_price_usd": 0.7, "reserve_in_usd": 200_000, "quote_token_price_usd": 150.0}
-        for o in list(p["open"]): m.close_position(o, a, "stop-loss", p)
-        self.assertIsNotNone(self.er.paused()); self.assertIsNotNone(m._er_pause())
-    def test_bank_reset_closes_ignored(self):
-        m = self.m; p = m.load_pos(); o = pos("R1"); p["open"] = [o]
-        m.close_position(o, {"base_token_price_usd": 0.5, "reserve_in_usd": 200_000, "quote_token_price_usd": 150.0}, "reset: bank reset", p)
-        self.assertEqual(self.er._load()["streak"], 0)
-    def test_shadow_does_not_touch_streak(self):
-        src = open(os.path.join(os.path.dirname(__file__), "..", "shadow.py")).read(); self.assertNotIn("entry_rules", src); self.assertNotIn("close_position", src)
-
-class Rule6XIsResearch(unittest.TestCase):
-    def setUp(self):
-        import newpairs, entry_rules; self.n = newpairs; self.er = entry_rules
-        self.static = {"impersonation": {}, "launchpad_website_hosts": []}
-        self.c = {"mint": "M1", "name": "Kimchi", "symbol": "KIMCHI", "description": "", "twitter": "https://x.com/someone/status/123", "website": "", "telegram": "", "image_uri": "x"}
-    def test_x_cannot_trigger(self):
-        terms = [(self.n.norm("Kimchi"), self.n.squash("Kimchi"), "Kimchi", 10, "trending:x_news")]
-        self.assertFalse(self.er.X_SCORE_ENABLED)
-        sc, mt, rs = self.n.narrative(self.c, terms, self.static, {})
-        self.assertLess(sc, self.n.THRESHOLD); self.assertTrue(any("X tag" in r for r in rs)); self.assertTrue(any("tag only" in r for r in rs))
-    def test_x_would_trigger_if_enabled(self):
-        terms = [(self.n.norm("Kimchi"), self.n.squash("Kimchi"), "Kimchi", 10, "trending:x_news")]
-        self.er.X_SCORE_ENABLED = True
-        try: sc, _, _ = self.n.narrative(self.c, terms, self.static, {}); self.assertGreaterEqual(sc, self.n.THRESHOLD)
-        finally: self.er.X_SCORE_ENABLED = False
-    def test_non_x_narrative_unchanged(self):
-        terms = [(self.n.norm("Kimchi"), self.n.squash("Kimchi"), "Kimchi", 10, "famous_people")]
-        sc, _, _ = self.n.narrative(self.c, terms, self.static, {}); self.assertGreaterEqual(sc, self.n.THRESHOLD)
-    def test_no_x_api_in_trading_code(self):
-        d = os.path.join(os.path.dirname(__file__), "..")
-        for f in ("meme.py", "newpairs.py", "scan.py", "rugpattern.py", "shadow.py", "entry_rules.py"):
-            s = open(os.path.join(d, f)).read().lower(); self.assertNotIn("api.twitter.com", s); self.assertNotIn("api.x.com", s); self.assertNotIn("fomo", s.replace("fomo or", ""))
-
-class DashFeed(unittest.TestCase):
-    def setUp(self): self.m, self.tmp = iso_meme(); import entry_rules; self.er = entry_rules
-    def test_drop_log_counts_and_feed(self):
-        er = self.er
-        self.assertTrue(er.log_fails(["order rule 1 · pool liquidity $12.0k < $40.0k"], "ZED", "M1", "main", "pumpswap"))
-        er.log_fails(["order rule 1 · pool liquidity $12.0k < $40.0k"], "ZED", "M1", "main", "pumpswap")   # duplicate within 60 min -> one row
-        er.log_fails(["order rule 3 · mid-rocket"], "STO", "M2", "main"); er.log_event("pass", 0, "OKK", "M3", "main", "passed")
-        s = er.dash_summary(); self.assertEqual((s["evaluated"], s["dropped"]), (3, 2)); self.assertEqual((s["by_rule"][1], s["by_rule"][3]), (1, 1))
-        self.assertEqual(len(open(er.DROP_LOG).readlines()), 3); self.assertEqual(s["feed"][0]["name"], "OKK")
+    def test_pause_switch_off(self):
+        er = self.er; er.LOSS_PAUSE_ENABLED = False; er.record_close(-0.5, "A", self.t0); er.record_close(-0.2, "B", self.t0)
+        self.assertIsNone(er.paused(self.t0 + dt.timedelta(minutes=2)))
     def test_non_order_fail_not_logged(self): self.assertFalse(self.er.log_fails(["rule 9 · chase"], "X", "M", "main"))
 
 class Limits(unittest.TestCase):
     def setUp(self):
         self.m, self.tmp = iso_meme(); json.dump({"start_capital": 104.64, "start_eur": 93.3, "eurusd": 1.1215, "epoch": 3}, open(f"{self.tmp}/bank.json", "w"))
-    def test_limits_one_shared_pool_of_10(self):   # 13:57: main + new pairs = one pool, no 8/2 split
-        import newpairs; self.assertEqual((self.m.MAX_OPEN, self.m.TOTAL_MAX_OPEN, newpairs.NP_MAX_OPEN, newpairs.TOTAL_MAX_OPEN), (10, 10, 10, 10))
-    def test_book_add_total_10_shared(self):
+    def test_limits_restored_6_3_8(self):   # 21:27: back to main 6 / new pairs 3 / total 8
+        import newpairs; self.assertEqual((self.m.MAX_OPEN, self.m.TOTAL_MAX_OPEN, newpairs.NP_MAX_OPEN, newpairs.TOTAL_MAX_OPEN), (6, 8, 3, 8))
+    def test_defaults_restored(self):
+        import entry_rules as er
+        self.assertFalse(er.ENTRY_RULES_ONLY); self.assertTrue(er.KEEP_DIAL_GATE); self.assertFalse(er.ORDER_RULES_ENABLED); self.assertFalse(er.X_SCORE_ENABLED)
+        self.assertEqual(er.liq_gate("pumpswap", 1), None); self.assertEqual(er.vol_gate(1), None); self.assertIsNone(er.bs_gate({"m15": {"buys": 1, "sells": 9}}))
+        self.assertEqual(er.main_gates(cand(liquidity_usd=1)), ([], []))
+        self.assertIsNone(rugpattern.chase_verdict(rugpattern.chase_metrics([(1.0, 1.0, 1.0, 1.0, 1.0, 1.0)], 100.0)))
+    def test_book_add_main_6_np_3_total_8(self):
         m = self.m
         for i in range(6): self.assertIsNone(m.book_add(pos(f"M{i}", cost=1.0), m.MAX_OPEN, m.TICKET_PCT))
-        for i in range(4): self.assertIsNone(m.book_add(pos(f"N{i}", sleeve="newpairs", cost=1.0, venue="bonding_curve"), 10, m.TICKET_PCT, m.TOTAL_MAX_OPEN))   # NP uses the same pool
-        self.assertIn("overall max 10", m.book_add(pos("M9", cost=1.0), m.MAX_OPEN, m.TICKET_PCT))
-        self.assertIn("overall max 10", m.book_add(pos("N9", sleeve="newpairs", cost=1.0, venue="bonding_curve"), 10, m.TICKET_PCT, m.TOTAL_MAX_OPEN))
-        self.assertEqual(len(m.load_pos()["open"]), 10)
-    def test_main_can_use_all_10_slots(self):
-        m = self.m
-        for i in range(10): self.assertIsNone(m.book_add(pos(f"M{i}", cost=1.0), m.MAX_OPEN, m.TICKET_PCT))
-        self.assertIn("max 10", m.book_add(pos("X", cost=1.0), m.MAX_OPEN, m.TICKET_PCT))
+        self.assertIn("max 6", m.book_add(pos("M9", cost=1.0), m.MAX_OPEN, m.TICKET_PCT))
+        for i in range(2): self.assertIsNone(m.book_add(pos(f"N{i}", sleeve="newpairs", cost=1.0, venue="bonding_curve"), 3, m.TICKET_PCT, m.TOTAL_MAX_OPEN))
+        self.assertIn("overall max 8", m.book_add(pos("N9", sleeve="newpairs", cost=1.0, venue="bonding_curve"), 3, m.TICKET_PCT, m.TOTAL_MAX_OPEN))
+        self.assertEqual(len(m.load_pos()["open"]), 8)
     def test_sizing_cash_short(self):
         m = self.m
         self.assertEqual(m.size_ticket(500_000, 500.0), m.FIXED_TICKET_USD)       # cash plenty: fixed 10 EUR
@@ -162,9 +107,9 @@ class Limits(unittest.TestCase):
     def test_bank_holds_9_full_tickets(self):
         m = self.m; self.assertEqual(int(104.64 // m.FIXED_TICKET_USD), 9)   # epoch-3 bank 104.64 USD / 11.215 USD ticket
         p = m.load_pos(); st = m.meme_state(p); self.assertAlmostEqual(st["cash"], 104.64, 2)
-        for i in range(8): self.assertIsNone(m.book_add(pos(f"B{i}", cost=m.FIXED_TICKET_USD), m.MAX_OPEN, m.TICKET_PCT))
-        self.assertIsNone(m.book_add(pos("B8", sleeve="newpairs", cost=m.FIXED_TICKET_USD, venue="bonding_curve"), 10, m.TICKET_PCT, m.TOTAL_MAX_OPEN))
+        for i in range(6): self.assertIsNone(m.book_add(pos(f"B{i}", cost=m.FIXED_TICKET_USD), m.MAX_OPEN, m.TICKET_PCT))
+        for i in range(2): self.assertIsNone(m.book_add(pos(f"B{i+6}", sleeve="newpairs", cost=m.FIXED_TICKET_USD, venue="bonding_curve"), 3, m.TICKET_PCT, m.TOTAL_MAX_OPEN))
         cash = m.meme_state()["cash"]; self.assertGreater(cash, 0)
-        self.assertEqual(m.size_ticket(900_000, cash), round(cash, 2))                # 10th ticket = the cash left, scaled down, never negative
+        self.assertEqual(m.size_ticket(900_000, cash), round(m.FIXED_TICKET_USD, 2) if cash >= m.FIXED_TICKET_USD else round(cash, 2))
 
 if __name__ == "__main__": unittest.main()

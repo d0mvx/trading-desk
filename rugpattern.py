@@ -163,7 +163,7 @@ def chase_verdict(m, newpairs=False):
     red = NP_R10_MAX_RED1M if newpairs else R10_MAX_RED1M
     if legacy and m["red10"] >= red:
         return f"rule 10 · dump candle: -{m['red10']*100:.0f}% in one 1m candle within {R10_WIN_S//60} min (max -{red*100:.0f}%)"
-    if m.get("maxgreen", 0) >= R3_GREEN_RUN and m.get("run10", 0) >= R3_MIN_RUN10:
+    if entry_rules.ORDER_RULES_ENABLED and m.get("maxgreen", 0) >= R3_GREEN_RUN and m.get("run10", 0) >= R3_MIN_RUN10:
         return (f"order rule 3 · mid-rocket: {m['maxgreen']} green 1m candles in a row, +{m['run10']*100:.0f}% in 10 min "
                 f"(max {R3_GREEN_RUN - 1} in a row or +{R3_MIN_RUN10*100:.0f}%)")
     if newpairs and m.get("v60") is not None:

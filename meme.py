@@ -35,8 +35,8 @@ TICKET_PCT, LIQ_CAP, MIN_TICKET = 0.03, 0.02, 1.00   # 2026-10-20 01:5x: ticket 
 # Stops/TPs/caps unchanged; still capped by 2% of pool liquidity and free cash. EURUSD from frankfurter (ECB) 2026-10-20.
 FIXED_TICKET_EUR, EURUSD = 10.0, 1.1215
 FIXED_TICKET_USD = round(FIXED_TICKET_EUR * EURUSD, 2)
-MAX_OPEN = 10                                          # USER ORDER 2026-10-24 13:57: ONE shared pool (main + new pairs): max 10 open, 1 per coin (token mint); no 8/2 split
-TOTAL_MAX_OPEN = 10                                    # overall cap incl. the NEW PAIRS sleeve (same pool, newpairs.NP_MAX_OPEN = 10)
+MAX_OPEN = 6                                           # max open MAIN-sleeve positions, 1 per coin (token mint). USER ORDER 2026-10-24 21:27: restored 6 / NP 3 / total 8 (13:38: 8/2/10, 13:57: 10 shared)
+TOTAL_MAX_OPEN = 8                                     # overall cap incl. the NEW PAIRS sleeve (newpairs.NP_MAX_OPEN = 3)
 EXIT_RATIO = 0.20; DAILY_DD = 0.20; DAILY_DD_ENABLED = False  # 2026-10-21 20:17 USER ORDER "hebe daily limit auf": daily drawdown halt OFF (SL/TP/caps unchanged)
    # 2026-10-21 USER ORDER "viel mehr machen": 4% -> 20%
 DIAL_MAX_AGE_H = 24
@@ -599,6 +599,7 @@ def _er_pause():
 def entry_gates(c):
     """USER ORDER 2026-10-24 13:34 order rules 1/2/4 for a main-sleeve candidate (entry_rules.py). Returns (fails, notes); writes the dashboard drop log."""
     import entry_rules
+    if not entry_rules.ORDER_RULES_ENABLED: return [], []   # 21:27 restore: order rules 1/2/4 off
     f, n = entry_rules.main_gates(c)
     if not entry_rules.log_fails(f, c.get("name"), c.get("base_token"), "main", c.get("venue")):
         entry_rules.log_event("pass", 0, c.get("name"), c.get("base_token"), "main", "passed order rules 1/2/4", c.get("venue"))

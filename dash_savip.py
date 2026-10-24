@@ -19,8 +19,8 @@ DESKS = [  # id, label, floor title, logo kind, venue text, bots on the floor (r
 ]
 BY = {"meme": "JUDGE", "newpairs": "SCAN", "trend": "TREND", "stocks": "STOCKS", "crypto": "CRYPTO"}
 RULES = {
-    "meme": ["SL -20% swap / -30% curve", "TP 1/3 @+30% 1/3 @+60% 1/2 rest @2x", "after TP fixed -20%, after TP3 trail -50%", "fast exits 14x/min · time stop 60 min", "max 10 open shared (main+NP) · six rules only · pause 10 min after 2 losses", "4% day DD -> halt"],
-    "newpairs": ["same six entry rules as main", "hard safety only", "liq>=$40K (curves cannot pass)", "ticket 10 EUR", "shared pool of 10", "-30% hard stop"],
+    "meme": ["SL -20% swap / -30% curve", "TP 1/3 @+30% 1/3 @+60% 1/2 rest @2x", "after TP fixed -20%, after TP3 trail -50%", "fast exits 14x/min · time stop 60 min", "max 6 open (8 total incl. NP) · pause 60 min after 2 losses", "4% day DD -> halt"],
+    "newpairs": ["narrative score >= 70 (X = tag only)", "RugCheck + dev not sold", "curve 5-60% / 25 buyers", "ticket 10 EUR", "max 3 new pairs (8 total)", "-30% hard stop"],
     "trend": ["QQQ > 200d -> TQQQ", "else -> SHY", "35% of paper acct", "check 15:45 NY", "no price stop", "acct kill -4%/day"],
     "stocks": ["DRIFT + INSIDERS lists", "50% x dial", "rebalance 15:45 NY", "sell if off both lists", "dial < 0.50 -> sell", "acct kill -4%/day"],
     "crypto": ["top-2 12m->1m momentum", "15% x dial", "rebalance 20:05 NY", "BTC / ETH / SOL", "dial < 0.50 -> cash", "acct kill -4%/day"],

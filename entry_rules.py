@@ -21,14 +21,20 @@ MIN_POOL_LIQ_USD = {"pumpswap": 40_000.0, "bonding_curve": 40_000.0}
 MIN_VOL_H1_USD = 50_000.0
 MAX_SELLS_PER_BUY = 2.0
 STREAK_LOSSES = 2
-PAUSE_MIN = 10          # USER ORDER 2026-10-24 13:57 (correction): 2 losing closes in a row -> 10 min buy pause (was 60); configurable
+PAUSE_MIN = 60          # USER ORDER 2026-10-24 21:27 (restore): 2 losing closes in a row -> 60 min buy pause as at 13:34 (13:57 had 10); configurable, shared main + new pairs
 # USER ORDER 2026-10-24 13:57: ONLY the six rules decide an entry (main + new pairs = one pipeline, one position pool, one pause/streak).
 # True = all older entry filters are OFF (scan age/liq/mcap/vol/buys/wash/sells rules, judge thresholds, rules 7-10, RugCheck concentration/LP/insider
 # gates, dip/watchlist entry, Jev pick, narrative threshold + new-pairs safety heuristics, dial stand-down). Hard safety stays (data errors, unbuyable
 # token, mint/freeze authority, transfer fee, rugged/honeypot flags, curve complete/banned, no price/route) plus the cooldown for blocked tokens.
 # False = legacy behaviour (all old filters). Forbidden for the learner.
-ENTRY_RULES_ONLY = True
-KEEP_DIAL_GATE = False   # macro dial stand-down (< 0.50 / missing / degraded) was an entry filter -> off while ENTRY_RULES_ONLY
+# USER ORDER 2026-10-24 21:27 ("stell die settings wie davor wieder"): RESTORED to the pre-six-rules state (commit 50ce7a8): ENTRY_RULES_ONLY=False (all old
+# filters back), KEEP_DIAL_GATE=True (dial gate back), ORDER_RULES_ENABLED=False (order rules 1-4: liq >= $40K, 1h vol >= $50K, mid-rocket, sells < 2x buys: OFF).
+# Kept on purpose: rule 5 loss-streak pause (60 min, 2 losses, shared main + NP; a risk control, switch LOSS_PAUSE_ENABLED) and rule 6 (X = research/tag only).
+# The whole six-rules machinery stays in the code: flip the three flags to bring it back.
+ENTRY_RULES_ONLY = False
+KEEP_DIAL_GATE = True    # macro dial stand-down (< 0.50 / missing / degraded) = entry filter; only relevant while ENTRY_RULES_ONLY (otherwise always on)
+ORDER_RULES_ENABLED = False   # order rules 1 (liq), 2 (1h volume), 3 (mid-rocket), 4 (sells < 2x buys): off = as before 24.10. 13:34
+LOSS_PAUSE_ENABLED = True
 X_SCORE_ENABLED = False
 STREAK_FILE = f"{DESK}/loss_streak.json"; STREAK_LOCK = f"{DESK}/.loss_streak.lock"
 DROP_LOG = f"{DESK}/logs/entry_rules_drops.jsonl"
@@ -38,18 +44,21 @@ def usd(x): return f"${x/1e3:.1f}k" if x >= 1e3 else f"${x:.0f}"
 
 # ---------------- rule 1 / 2 / 4: pure checks ----------------
 def liq_gate(venue, liq):
+    if not ORDER_RULES_ENABLED: return None
     lim = MIN_POOL_LIQ_USD.get(venue, max(MIN_POOL_LIQ_USD.values()))
     if liq is None: return f"{PFX} 1 · pool liquidity n/a (min {usd(lim)})"
     if liq < lim: return f"{PFX} 1 · pool liquidity {usd(liq)} < {usd(lim)}" + (" (curve, derived)" if venue == "bonding_curve" else "")
     return None
 
 def vol_gate(vol_h1):
+    if not ORDER_RULES_ENABLED: return None
     if vol_h1 is None: return None
     if vol_h1 < MIN_VOL_H1_USD: return f"{PFX} 2 · dead volume: 1h volume {usd(vol_h1)} < {usd(MIN_VOL_H1_USD)}"
     return None
 
 def bs_gate(windows):
     """windows: {'m5': {'buys','sells'}, 'm15': {...}}; sells >= MAX_SELLS_PER_BUY x buys (and sells > 0) in any window -> fail."""
+    if not ORDER_RULES_ENABLED: return None
     for w in ("m5", "m15"):
         t = (windows or {}).get(w)
         if not t: continue
@@ -61,6 +70,7 @@ def bs_gate(windows):
 def main_gates(c):
     """Main-sleeve candidate (scan dict). Returns (fails, notes). Rules 1, 2, 4 (rule 3 lives in rugpattern, rule 5 in paused())."""
     fails, notes = [], []
+    if not ORDER_RULES_ENABLED: return fails, notes
     t = liq_gate(c.get("venue"), c.get("liquidity_usd"))
     if t: fails.append(t)
     v = c.get("vol_h1")
@@ -82,6 +92,7 @@ def _save(s):
 
 def paused(at=None):
     """Returns (until_iso, text) while the loss-streak pause is on, else None. Clears an expired pause (counter restarts)."""
+    if not LOSS_PAUSE_ENABLED: return None
     at = at or _now(); s = _load(); pu = s.get("paused_until")
     if not pu: return None
     if dt.datetime.fromisoformat(pu) > at:

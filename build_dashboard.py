@@ -179,7 +179,7 @@ bots = [  # name, variant, status, note
      f"dial {dial['date']} meme {dial['dial']['meme']}" if dial else "no dial yet"),
     ("SCAN", "outline", "active" if meme_sched else "idle", last_tag("SCAN") or "GeckoTerminal + pump.fun feeds + DexScreener"),
     ("JUDGE", "mask", "active" if meme_sched else "idle", (last_tag("JUDGE") or "buyers/flow gates + RugCheck") + " · PumpSwap only (curve → shadow)" + (" · Jev ON" if jev_on else " · Jev off (no key)")),
-    ("SIZE", "outline", "active" if meme_sched else "idle", f"fixed ticket 10 EUR (cash-short: remaining cash, < $1 skipped) · ONE shared pool: max 10 open (main + new pairs together, no split; USER ORDER 24.10. 13:57) · bank {money(meme['equity']) if meme else 'n/a'}"),
+    ("SIZE", "outline", "active" if meme_sched else "idle", f"fixed ticket 10 EUR (cash-short: remaining cash, < $1 skipped) · max 6 main open + NEW PAIRS max 3 · 8 overall (restored USER ORDER 24.10. 21:27) · bank {money(meme['equity']) if meme else 'n/a'}"),
     ("FILLS", "mouth", "active" if n_open or n_closed else ("idle" if meme_sched else "not set up"), f"pump.fun simulated · {n_open} open/{n_closed} closed"),
     ("TREND", "solid", "halted" if kill_today else ("active" if runner_sched else "idle"),
      f"TQQQ/SHY 35% · 15:45 NY · {money(alp_mv.get('trend', 0))} · last {last_dry[1] if last_dry else '—'}"),
@@ -187,7 +187,7 @@ bots = [  # name, variant, status, note
      f"50%×dial · DRIFT {alp_lists['DRIFT']['n'] if alp_lists['DRIFT']['n'] is not None else 'null'} · INSIDERS {alp_lists['INSIDERS']['n'] if alp_lists['INSIDERS']['n'] is not None else 'null'} · {money(alp_mv.get('stocks', 0))}"),
     ("CRYPTO", "outline2", "halted" if kill_today else ("active" if crypto_sched else "idle"),
      f"15%×dial · 20:05 NY · targets {', '.join((dial or {}).get('crypto_targets', {}).get('weights', {}) or ['cash'])} · {money(alp_mv.get('crypto', 0))}"),
-    ("RISK", "sweat", "active" if risk_sched else "idle", "fast exits 14×/min (~4 s, DexScreener + chain) · SL -30% curve / -20% PumpSwap · TP ⅓ +30% + ⅓ +60% + ½ of rest at 2x · after any TP fixed stop entry -20% · after TP3 trail -50% from peak (floor = fixed stop, no lock) · volume-collapse / liquidity-pull / no-data exits · 60 min time stop · vol decay · 24h cooldown (60 min after rule 9/10 block) · 4% DD · ENTRY RULES (USER ORDER 24.10.): pool liq ≥ $40K · 1h vol ≥ $50K · not mid-rocket · sells < 2× buys · 2 losing closes = 60 min buy pause · X = tag only · max 10 positions (8 main / 2 NP)"
+    ("RISK", "sweat", "active" if risk_sched else "idle", "fast exits 14×/min (~4 s, DexScreener + chain) · SL -30% curve / -20% PumpSwap · TP ⅓ +30% + ⅓ +60% + ½ of rest at 2x · after any TP fixed stop entry -20% · after TP3 trail -50% from peak (floor = fixed stop, no lock) · volume-collapse / liquidity-pull / no-data exits · 60 min time stop · vol decay · 24h cooldown (60 min after rule 9/10 block) · 4% DD · 2 losing closes in a row = 60 min buy pause · X = tag only · max 6 main / 3 new pairs / 8 total (restored USER ORDER 24.10. 21:27)"
      + (" · acct kill FIRED today" if kill_today else " · acct kill 4%/30 min" if kill_sched else "")),
     ("CHIEF", "outline2", "active" if meme_sched else ("idle" if os.path.exists(f"{DESK}/.meme_schedule_ended") else "not set up"),
      ("cadence " + gate_next.split()[0].split("=")[1].replace("min", " min")) if gate_next.startswith("cadence=") and "None" not in gate_next else "schedule ended"),
@@ -291,9 +291,10 @@ if rej_rec:
                     for c in rej_rec.get("passed_candidates", []))
     rrows = "".join(row(c, "SCAN", "<br>".join(esc(f) for f in c["fails"])) for c in rej_rec.get("rejects", [])[:25])
     hdr = '<tr><th>TOKEN</th><th>MCAP</th><th>LIQ</th><th>VOL 24H</th><th>AGE</th><th>B/S M15</th><th>B/S H1</th><th>REJECTED BY</th></tr>'
-    jnone = ('<div class="sub">USER ORDER 24.10. 13:57: ONLY the six entry rules decide a buy (liq ≥ $40K · 1h volume ≥ $50K · not mid-rocket · sells &lt; 2× buys · 2 losses = 10 min pause · X = tag only); '
-             'judge thresholds (price h1 range, unique buyers, buys/sells m15, buyers/buy), the old scan filters (age, mcap, 24h vol, buys, wash, sells&gt;buys), rules 7–10, dip/watchlist and the dial stand-down are OFF. '
-             'STAYS: hard safety (missing price/mcap/data, quote not SOL, curve complete, mint/freeze authority, transfer fee, rugged, honeypot-type RugCheck flags, RugCheck down → no buy, stale data) and the 24h COOLDOWN after a stop-out / losing close. Max 1 buy/run.</div>')
+    jnone = ('<div class="sub">JUDGE gates (rank order, first pass is bought, max 1/run): unique buyers h1 ≥ 50 · buys/sells m15 ≥ 1.2 · '
+             'buyers/buy h1 ≥ 0.25 · price h1 +10..+300% (watchlisted: ≥ 0%) · then RugCheck: no mint/freeze authority, transfer fee 0, not rugged, no danger risks, '
+             'PumpSwap LP locked ≥ 95%, creator ≤ 5%, largest non-pool holder ≤ 15%, insiders ≤ 10 (unreachable → no buy) · then DIP: price 12–40% below its 60-min high and m5 ≥ −10%, '
+             'otherwise → WATCHLIST (60 min) and re-checked every scan · 24h COOLDOWN after a stop-out / losing close · since 24.10. 21:27 also: 2 losses in a row = 60 min buy pause (shared with main + new pairs) · X posts = research/tag only (never a trigger) · restored to the state before the six-rules rebuild (24.10. 13:34)</div>')
     jrc = {}
     for d in (judge_rec or {}).get("decisions", []):
         k = (d.get("reason") or "").split(":")[0].split(" (")[0]
@@ -355,8 +356,8 @@ if _np:
                + (f' · BUY {esc(_np["bought"])}' if _np.get("bought") else (f' · {esc(_np["buy_note"])}' if _np.get("buy_note") else "")) + '</div>'
                '<div class="sub">score = 7×weight (famous people/crypto w7–10, classic memes w5–8, trending X topics = TAG ONLY (0 pts, USER ORDER 24.10.), generic animals/AI/events w4–7; description ×0.7) '
                '+ socials (X link = tag only 0 pts, website +6, TG +3; none −20) − copycat −30 − impersonation −25/−15 − spam/bot −10 · pass ≥ 70 · STRONG ≥ 85 · '
-               'safety (13:57): only hard checks (curve complete/banned, security verdict, transfer fee, mint/freeze authority, rugged, honeypot flags, data n/a → no buy); dev-sold / snipers / buyers ≥ 25 / buys > sells / curve 5–60% / serial launcher / narrative ≥ 70 are OFF · '
-               'USER ORDER 24.10.: pool liquidity ≥ $40K (curve liquidity is derived and stays below it → effectively paused), 1h volume ≥ $50K, not mid-rocket, sells < 2× buys, 2 losses in a row = 10 min buy pause (shared with main), X never a trigger · same pipeline and ONE pool of 10 positions with main · ticket = fixed 10 EUR · all tiers: ⅓ @ +30%, ⅓ @ +60%, ½ of rest @ 2x; after any TP fixed stop entry −20%, after TP3 trail −50% from peak · NORMAL: 30-min time stop only if not in profit (12 h cap) · STRONG: 3 h time stop only if not in profit (12 h cap) · all: −30% hard stop before TP1, dev-sell / volume-collapse / liquidity-pull / no-data / RugCheck-danger exits</div>'
+               'safety: RugCheck gates + dev not sold + not serial launcher (≤ 2 other coins/24h) + ≥ 25 unique buyers + buys > sells + curve 5–60% + first-2-block snipers ≤ 10% · '
+               'ticket = fixed 10 EUR · max 3 new pairs (8 overall) · 2 losses in a row = 60 min buy pause (shared with main) · X never a trigger · all tiers: ⅓ @ +30%, ⅓ @ +60%, ½ of rest @ 2x; after any TP fixed stop entry −20%, after TP3 trail −50% from peak · NORMAL: 30-min time stop only if not in profit (12 h cap) · STRONG: 3 h time stop only if not in profit (12 h cap) · all: −30% hard stop before TP1, dev-sell / volume-collapse / liquidity-pull / no-data / RugCheck-danger exits</div>'
                + (f'<div class="lbl mt">NEW-PAIR POSITIONS</div><div class="tscroll"><table class="rt"><tr><th>TOKEN</th><th>TIER</th><th>COST</th><th>P&amp;L</th><th>NARRATIVE / EXITS</th></tr>{_np_pos}</table></div>' if _np_pos else "")
                + f'<details open class="mt"><summary>candidates (narrative ≥ {_np.get("threshold")}) · {len(_np.get("candidates") or [])}</summary>'
                + (f'<div class="tscroll"><table class="rt"><tr><th>TOKEN</th><th>AGE</th><th>SCORE</th><th>MATCHED</th><th>VERDICT</th></tr>{_np_rows(_np.get("candidates") or [])}</table></div>' if _np.get("candidates") else '<div class="empty">No fresh launch with a strong enough narrative right now.</div>')
@@ -1049,9 +1050,10 @@ try:
     _rl = " · ".join(f'{n} {_er.RULE_LABEL[n]}' + (f' <b>({_byr.get(n, 0)})</b>' if n <= 4 else '') for n in range(1, 7))
     _fd = "".join(f'<div class="row"><span class="sm">{esc((d.get("t") or "")[11:16])}</span> <b>{"Dropped" if d.get("kind") == "drop" else "Passed"}</b> {esc(d.get("name") or "?")} '
                   f'<span class="sm">{esc(("rule %s " % d["rule"]) + (_er.RULE_LABEL.get(d["rule"], "")) if d.get("kind") == "drop" else "mint passed rules 1/2/4 · " + (d.get("sleeve") or ""))}</span></div>' for d in _es["feed"]) or '<div class="empty">No entry-rule events yet.</div>'
-    _ps = (f'<b>BUY PAUSE</b> until {esc(_pz[0][11:16])} (2 losses in a row, shared main + new pairs)' if _pz else f'no pause · loss streak {_es["streak"]}/2')
-    frag["entry"] = (f'<div class="lbl">ENTRY RULES · USER ORDER 24.10. · {_es["evaluated"]} analysed (24 h, passed scan filters), {_es["dropped"]} dropped</div>'
-                     f'<div class="sm">{_rl}</div><div class="sm">Rule 5: {_ps} · X posts are research/tag only (rule 6) · limits: ONE pool, max 10 positions (main + new pairs together) · merged pipeline · OFF since 13:57: all old entry filters except hard safety + cooldown (see KNOWLEDGE)</div>{_fd}')
+    _ps = (f'<b>BUY PAUSE</b> until {esc(_pz[0][11:16])} (2 losses in a row, shared main + new pairs, 60 min)' if _pz else f'no pause · loss streak {_es["streak"]}/{_er.STREAK_LOSSES}')
+    _mode = ("SIX RULES ONLY (flags ON)" if _er.ENTRY_RULES_ONLY else "RESTORED to the pre-13:34 settings (USER ORDER 24.10. 21:27): old filters + dial gate ON, order rules 1-4 OFF" + ("" if not _er.ORDER_RULES_ENABLED else " (rules 1-4 ON)"))
+    frag["entry"] = (f'<div class="lbl">ENTRY RULES · {_mode} · {_es["evaluated"]} analysed (24 h), {_es["dropped"]} dropped by rules 1-4</div>'
+                     f'<div class="sm">{_rl}</div><div class="sm">Rule 5: {_ps} · X posts are research/tag only (rule 6) · loss pause = {_er.PAUSE_MIN} min · limits: main 6 / new pairs 3 / total 8 · six-rules machinery stays in the code behind 3 flags (see KNOWLEDGE)</div>{_fd}')
 except Exception as _e: frag["entry"] = f'<div class="empty">Entry rules: summary unavailable ({esc(type(_e).__name__)})</div>'
 frag["newpairs"] = f'<div class="lbl">NEW PAIRS · fresh pump.fun launches (paper)</div>{np_html}'
 frag["schedule"] = f"""<div class="lbl">SCHEDULE</div>
@@ -1196,7 +1198,7 @@ page = f"""<!doctype html><html lang="de"><head><meta charset="utf-8">
 <details class="sec" id="d-shadow"><summary>Shadow-Trades<span class="sm" id="f-s_shadow">{frag["s_shadow"]}</span></summary><div class="body" id="f-shadow">{frag["shadow"]}</div></details>
 <details class="sec" id="d-control"><summary>Kontroll-Bot<span class="sm" id="f-s_control">{frag["s_control"]}</span></summary><div class="body" id="f-control">{frag["control"]}</div></details>
 <details class="sec" id="d-rejtrack"><summary>Reject-Tracker<span class="sm" id="f-s_rejtrack">{frag["s_rejtrack"]}</span></summary><div class="body" id="f-rejtrack">{frag["rejtrack"]}</div></details>
-<details class="sec" id="d-entry" open><summary>Entry-Regeln (USER ORDER 24.10.)</summary><div class="body" id="f-entry">{frag["entry"]}</div></details>
+<details class="sec" id="d-entry" open><summary>Entry-Regeln / Settings-Stand (USER ORDER 24.10.)</summary><div class="body" id="f-entry">{frag["entry"]}</div></details>
 <details class="sec" id="d-rejects"><summary>Scan-Ablehnungen &amp; Watchlist</summary><div class="body" id="f-rejects">{frag["rejects"]}</div></details>
 <details class="sec" id="d-newpairs"><summary>New-Pairs-Scanner</summary><div class="body" id="f-newpairs">{frag["newpairs"]}</div></details>
 <details class="sec" id="d-review"><summary>Wochen-Review<span class="sm" id="f-s_review">{frag["s_review"]}</span></summary><div class="body" id="f-review_body">{frag["review_body"]}</div></details>

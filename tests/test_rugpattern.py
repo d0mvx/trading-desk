@@ -50,6 +50,7 @@ class Rule7(unittest.TestCase):
         f, notes = rp.check("Q", newpairs=False, fetch=down, save=False)
         self.assertEqual(f, []); self.assertTrue(any("rule 7 n/a" in n for n in notes))      # main: allow + log
     def test_missing_data_policy_rules_only(self):   # 13:57: rules 7/8 off; no candles = data error -> new pairs skip, main allowed
+        from _iso import rules_only; rules_only(self)
         def down(m, i, l): raise rp.NoData("HTTP 503")
         f, notes = rp.check("Q", newpairs=True, fetch=down, save=False)
         self.assertTrue(any(x.startswith("data n/a") for x in f))

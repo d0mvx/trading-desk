@@ -34,7 +34,7 @@ DEV_24H_MAX = 2; DEV_7D_MAX = 9; DEV_TTL = 1800
 TRADE_PAGES = 3; DEEP_MAX = 6; RUN_BUDGET_S = 45
 INIT_REAL_TOKENS = 793_100_000 * 10**6; TOTAL_SUPPLY_UI = 1_000_000_000
 # ---- size / exits ----
-TICKET_PCT = 0.015; NP_MAX_OPEN = 10; TOTAL_MAX_OPEN = 10   # USER ORDER 2026-10-24 13:57: ONE shared pool of max 10 (main + new pairs), no NP split
+TICKET_PCT = 0.015; NP_MAX_OPEN = 3; TOTAL_MAX_OPEN = 8   # USER ORDER 2026-10-24 21:27: restored as before 13:38 (main 6 / new pairs 3 / total 8)
 EXIT_TIERS = {   # gains relative to entry fill; tp fractions are of the INITIAL qty
  # USER ORDER 2026-10-24 01:24 (Dominic): both tiers use the main regime (meme.EXIT_REGIME): TP1 +30% 1/3, TP2 +60% 1/3, last 1/3
  # runs (TP3 2x: half of the rest, then trail -50% from peak - 01:48 order); after any TP a FIXED stop at entry -20%; no other trailing (the old trail/trail_tight/trail_after_time_stop and the STRONG

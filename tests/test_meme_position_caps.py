@@ -27,14 +27,14 @@ class Caps(unittest.TestCase):
         self.assertIn("cap", m.book_add(pos("EEE", sleeve="newpairs", cost=m.FIXED_TICKET_USD + 1.0), 2, 0.015))
     def test_sequential_caps(self):
         m = self.m
-        r = [m.book_add(pos(f"M{i}"), m.MAX_OPEN, m.TICKET_PCT) for i in range(6)]
+        r = [m.book_add(pos(f"M{i}"), m.MAX_OPEN, m.TICKET_PCT) for i in range(8)]
         self.assertEqual(sum(x is None for x in r), 6)
-        r = [m.book_add(pos(f"N{i}", sleeve="newpairs", cost=1.0), 10, 0.015) for i in range(6)]
-        self.assertEqual(sum(x is None for x in r), 4)       # 13:57: one shared pool of 10 (no NP split): 6 main + 4 NP = 10 reached
-        self.assertEqual(len(json.load(open(m.POS))["open"]), 10)
+        r = [m.book_add(pos(f"N{i}", sleeve="newpairs", cost=1.0), 2, 0.015) for i in range(3)]
+        self.assertEqual(sum(x is None for x in r), 2)       # overall 8 binds before new pairs 3
+        self.assertEqual(len(json.load(open(m.POS))["open"]), 8)
     def test_constants(self):
         import newpairs
-        self.assertEqual((self.m.MAX_OPEN, self.m.TOTAL_MAX_OPEN, newpairs.NP_MAX_OPEN, newpairs.TOTAL_MAX_OPEN), (10, 10, 10, 10))   # 13:57: one shared pool
+        self.assertEqual((self.m.MAX_OPEN, self.m.TOTAL_MAX_OPEN, newpairs.NP_MAX_OPEN, newpairs.TOTAL_MAX_OPEN), (6, 8, 3, 8))
     def test_only_book_add_appends_positions(self):
         """Structural: no code path appends to the real book except book_add (so no path can skip the checks)."""
         hits = []
@@ -57,7 +57,7 @@ def _worker(args):
     m.meme_state = lambda p=None: {"equity": 100.0, "cash": 100.0}
     import time; time.sleep(0.2)
     o = pos(tok, sleeve=sleeve, cost=1.0)
-    return m.book_add(o, m.MAX_OPEN if sleeve == "main" else 2, m.TICKET_PCT if sleeve == "main" else 0.015)
+    return m.book_add(o, m.MAX_OPEN if sleeve == "main" else 3, m.TICKET_PCT if sleeve == "main" else 0.015)
 
 class Concurrent(unittest.TestCase):
     def test_concurrent_processes_respect_caps(self):
@@ -66,7 +66,7 @@ class Concurrent(unittest.TestCase):
         with mp.get_context("fork").Pool(18) as pl: res = pl.map(_worker, jobs)
         book = json.load(open(m.POS))["open"]
         main = [o for o in book if o.get("sleeve", "main") == "main"]; np_ = [o for o in book if o.get("sleeve") == "newpairs"]
-        self.assertLessEqual(len(main), 8); self.assertLessEqual(len(np_), 2); self.assertLessEqual(len(book), 10)
+        self.assertLessEqual(len(main), 6); self.assertLessEqual(len(np_), 3); self.assertLessEqual(len(book), 8)
         self.assertEqual(len({o["token"] for o in book}), len(book))          # never two positions in one coin
         self.assertEqual(sum(r is None for r in res), len(book))             # every 'added' is really in the book
 

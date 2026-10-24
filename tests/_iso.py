@@ -31,3 +31,10 @@ def legacy_filters(tc):
     import entry_rules
     old = entry_rules.ENTRY_RULES_ONLY; entry_rules.ENTRY_RULES_ONLY = False
     tc.addCleanup(lambda: setattr(entry_rules, "ENTRY_RULES_ONLY", old))
+
+def rules_only(tc):
+    """USER ORDER 2026-10-24 21:27: the six-rules mode is OFF by default again (pre-13:34 filters back). Tests of the six-rules machinery switch it on."""
+    import entry_rules
+    names = ("ENTRY_RULES_ONLY", "KEEP_DIAL_GATE", "ORDER_RULES_ENABLED"); old = {n: getattr(entry_rules, n) for n in names}
+    entry_rules.ENTRY_RULES_ONLY = True; entry_rules.KEEP_DIAL_GATE = False; entry_rules.ORDER_RULES_ENABLED = True
+    tc.addCleanup(lambda: [setattr(entry_rules, n, v) for n, v in old.items()])

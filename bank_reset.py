@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Start a new MEME bank epoch. PAPER only. Alpaca sleeves are never touched (separate book).
+EXCEPTION: with --start-eur N (USER ORDER 2026-10-24 21:27: 100 EUR) the new bank is N EUR, no SOL quote, for that reset only.
 STANDING RULE (USER ORDER 2026-10-23 19:23): on EVERY reset the new meme bank = the live price of 1 SOL in EUR at
 reset time. The bank stays EUR-denominated as before (accounting in USD via meme.EURUSD, start_eur shown on the dashboard),
 the SOL/EUR price used is recorded in bank.json (sol_eur_start, sol_source). Price = median of CoinGecko SOL/EUR and
@@ -37,13 +38,17 @@ def sol_eur(fetch=_get):
     if not q: raise RuntimeError("no sane SOL/EUR quote (CoinGecko + Kraken failed) -> reset aborted, nothing changed")
     return round(statistics.median(q.values()), 2), "+".join(sorted(q))
 
-def main(dry=False, order=None, once=False, price_fn=None):
+def main(dry=False, order=None, once=False, price_fn=None, start_eur=None):
     bank0 = json.load(open(f"{DESK}/bank.json"))
     if once and order and bank0.get("reset_order") == order: return None      # already done
     now = meme.now(); nb = now.astimezone(meme.BER); tag = nb.strftime("%Y%m%d_%H%M"); order = order or f"{nb:%Y-%m-%d %H:%M}"
-    px, src = (price_fn or sol_eur)()                                          # raises before any change if no quote
-    start_eur_v = px; start_usd = round(start_eur_v * meme.EURUSD, 2)
-    label = f"{start_eur_v:.2f} EUR (= 1 SOL @ {px:.2f} EUR/SOL, {src})"
+    if start_eur is not None:                                                  # explicit EUR amount (USER ORDER 2026-10-24 21:27: 100 EUR): no SOL quote needed
+        px, src = None, "explicit"; start_eur_v = float(start_eur)
+        label = f"{start_eur_v:.2f} EUR (fixed, USER ORDER {order})"
+    else:
+        px, src = (price_fn or sol_eur)()                                      # raises before any change if no quote
+        start_eur_v = px; label = f"{start_eur_v:.2f} EUR (= 1 SOL @ {px:.2f} EUR/SOL, {src})"
+    start_usd = round(start_eur_v * meme.EURUSD, 2)
     arch = f"{DESK}/archive"; os.makedirs(arch, exist_ok=True)
     with meme.poslock(wait=60):
         p = meme.load_pos(); reset_keys = set()
@@ -74,13 +79,20 @@ def main(dry=False, order=None, once=False, price_fn=None):
         bank.update({"start_capital": start_usd, "start_eur": start_eur_v, "eurusd": meme.EURUSD, "started": nb.date().isoformat(),
                      "started_at": nb.isoformat(timespec="seconds"), "epoch": n + 1, "reset_order": order,
                      "epoch_note": f"epoch {n + 1}: fresh start {label} (USER ORDER {order}); accounting in USD; previous epochs in 'epochs', archived books in archive/"})
-        bank.update(sol_eur_start=px, sol_source=src, bank_rule="start = 1 SOL in EUR at reset (USER ORDER 2026-10-23 19:23)")
+        if start_eur is None:
+            bank.update(sol_eur_start=px, sol_source=src, bank_rule="start = 1 SOL in EUR at reset (USER ORDER 2026-10-23 19:23)")
+        else:   # one-off exception by explicit order; the standing 1-SOL rule applies again at the next reset without --start-eur
+            bank.update(bank_rule=f"epoch {n + 1}: explicit start {start_eur_v:.2f} EUR (USER ORDER {order}); standing rule 'start = 1 SOL in EUR at reset' (2026-10-23 19:23) unchanged for future resets")
+            bank.pop("sol_eur_start", None); bank.pop("sol_source", None)
         tmp = f"{DESK}/bank.json.tmp"; json.dump(bank, open(tmp, "w"), indent=1); os.replace(tmp, f"{DESK}/bank.json")
         h = f"{DESK}/history.csv"
         if os.path.exists(h): shutil.move(h, f"{DESK}/{prev['history']}")
         with open(h, "w") as f:
             f.write("timestamp_berlin,desk_equity,desk_cash,realized,unrealized\n")
             f.write(f"{nb.isoformat(timespec='seconds')},{start_usd:.4f},{start_usd:.4f},0.0000,0.0000\n")
+    try:   # fresh epoch = fresh loss-streak counter (a pause earned with the old bank must not block the new one)
+        import entry_rules; entry_rules._save({"streak": 0, "paused_until": None, "history": entry_rules._load().get("history", [])[-20:]})
+    except Exception as e: meme.log(f"[BANK] loss-streak reset failed: {type(e).__name__}")
     with meme.poslock(path=f"{DESK}/.riskstate.lock"):
         rs = {"date": nb.date().isoformat(), "day_open_equity": start_usd, "halted": False, "epoch_reset": nb.isoformat(timespec="seconds")}
         with open(meme.RISK_JOURNAL, "a") as f: f.write(json.dumps(rs) + "\n")
@@ -104,5 +116,6 @@ def drop_reset_cooldowns(keys):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--order"); ap.add_argument("--once", action="store_true"); ap.add_argument("--dry", action="store_true")
+    ap.add_argument("--start-eur", type=float, default=None, help="explicit start bank in EUR instead of 1 SOL (one-off, by explicit user order)")
     a = ap.parse_args()
-    main(dry=a.dry, order=a.order, once=a.once)
+    main(dry=a.dry, order=a.order, once=a.once, start_eur=a.start_eur)

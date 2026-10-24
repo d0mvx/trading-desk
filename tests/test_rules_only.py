@@ -3,7 +3,7 @@ one shared loss-streak pause of 10 min). Old entry filters are OFF; hard safety 
 No network; live state files are redirected by iso_meme."""
 import os, sys, json, copy, unittest, datetime as dt
 DESK = os.path.expanduser("~/.desk"); sys.path.insert(0, DESK); sys.path.insert(0, os.path.dirname(__file__))
-from _iso import iso_meme, pos, legacy_filters
+from _iso import iso_meme, pos, legacy_filters, rules_only
 import scan, rugpattern
 
 def cand(**kw):
@@ -14,6 +14,7 @@ def cand(**kw):
 
 class ScanLevel(unittest.TestCase):
     def test_only_hard_checks_remain_at_scan(self):
+        rules_only(self)
         sys.path.insert(0, os.path.dirname(__file__)); from test_ds_scan_mapping import FX, ev
         keys = set()
         for x in FX["pairs"]:
@@ -28,7 +29,7 @@ class ScanLevel(unittest.TestCase):
         self.assertTrue(any(k.startswith(("liquidity", "buys", "mcap", "age")) for k in keys))
 
 class JudgeAndFilters(unittest.TestCase):
-    def setUp(self): self.m, self.tmp = iso_meme()
+    def setUp(self): self.m, self.tmp = iso_meme(); rules_only(self)
     def test_judge_thresholds_off(self):
         self.assertEqual(self.m.judge_metrics(cand(pc_h1=None, tx_h1={"buyers": None, "buys": 5}, tx_m15={"buys": 1, "sells": 1})), [])
     def test_judge_thresholds_back_in_legacy(self):
@@ -57,7 +58,7 @@ class JudgeAndFilters(unittest.TestCase):
 
 class PipelineOnlySixRules(unittest.TestCase):
     def setUp(self):
-        self.m, self.tmp = iso_meme(); self.sv = {k: getattr(scan, k) for k in ("scan", "watchlist_active", "cooldown_active", "save_json", "record_judge")}
+        self.m, self.tmp = iso_meme(); rules_only(self); self.sv = {k: getattr(scan, k) for k in ("scan", "watchlist_active", "cooldown_active", "save_json", "record_judge")}
         m = self.m
         m.desk_equity = lambda: (104.64, {"equity": 104.64, "cash": 104.64})
         m.latest_dial = lambda: (None, None)                                              # no dial at all: must NOT block (not one of the six rules)
@@ -73,7 +74,7 @@ class PipelineOnlySixRules(unittest.TestCase):
     def test_bad_old_metrics_but_six_rules_ok_is_bought(self):
         self.run_p(cand()); self.assertEqual(len(self.called), 1)                            # price h1 +900%, 3 buyers, no dial: old judge would have blocked all
         o = self.called[0][0]; self.assertEqual(o["token"], "W")
-        self.assertEqual(self.called[0][1], 10)                                              # shared pool cap 10 handed to book_add
+        self.assertEqual(self.called[0][1], self.m.MAX_OPEN)                               # main cap handed to book_add
     def test_rule1_blocks_cheap_pool(self):
         r = self.run_p(cand(liquidity_usd=39_000)); self.assertEqual(self.called, []); self.assertIn("order rule 1", json.dumps(r["reason"]))
     def test_rule2_blocks_dead_volume(self):
@@ -96,7 +97,7 @@ class PipelineOnlySixRules(unittest.TestCase):
         self.m.check_daily_dd = lambda eq: True; self.run_p(cand()); self.assertEqual(self.called, [])
 
 class NewPairsSafety(unittest.TestCase):
-    def setUp(self): self.m, self.tmp = iso_meme(); import newpairs; self.np = newpairs
+    def setUp(self): self.m, self.tmp = iso_meme(); rules_only(self); import newpairs; self.np = newpairs
     TS = {"buyers": 3, "buys": 10, "sells": 15, "dev_sold": True, "start_known": False, "sniper_pct": 90.0}
     def call(self, fresh=None, cs=None, ts=None, dev=None):
         import entry_rules; entry_rules.MIN_POOL_LIQ_USD["bonding_curve"] = 0.0     # let rule 1 pass to see the other gates (restored by cleanup)
