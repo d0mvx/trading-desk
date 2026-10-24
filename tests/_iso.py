@@ -13,6 +13,8 @@ def iso_meme():
     meme.LOGLINES = []
     meme.log = lambda l: meme.LOGLINES.append(l)
     import scan; scan.COOLDOWN_FILE = f"{tmp}/meme_cooldown.json"   # never write the live cooldown file from tests
+    import entry_rules; importlib.reload(entry_rules)   # USER ORDER 2026-10-24 13:34: loss streak + drop log never touch the live files
+    entry_rules.STREAK_FILE = f"{tmp}/loss_streak.json"; entry_rules.STREAK_LOCK = f"{tmp}/.loss_streak.lock"; entry_rules.DROP_LOG = f"{tmp}/logs/entry_rules_drops.jsonl"
     json.dump({"open": [], "closed": []}, open(meme.POS, "w"))
     return meme, tmp
 

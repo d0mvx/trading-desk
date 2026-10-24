@@ -145,6 +145,7 @@ def evaluate(p, now):
          "age_h": round(age_h, 2), "liquidity_usd": round(liq, 2), "liq_derived": liq_derived, "gt_reserve_usd": gt_liq,
          "curve": curve, "vol_h24": round(vol, 2),
          "vol_h6": num((a.get("volume_usd") or {}).get("h6")), "mcap_usd": mcap,
+         "vol_h1": num((a.get("volume_usd") or {}).get("h1")), "tx_m5": tx.get("m5") if tx.get("m5") else None,   # USER ORDER 2026-10-24 13:34: order rules 2 + 4
          "price_usd": num(a.get("base_token_price_usd")), "sol_usd": num(a.get("quote_token_price_usd")),
          "tx_m15": tx.get("m15"), "tx_h1": tx.get("h1"), "pc_h1": num(pc.get("h1")),
          "pc_m5": num(pc.get("m5")), "pc_m15": num(pc.get("m15")), "pc_m30": num(pc.get("m30")),
@@ -211,7 +212,7 @@ def _tx(t):
 
 def _slim(c, full=True):
     d = {"lead": lead_id(c.get("base_token")), "pool": c.get("pool"), "name": c.get("name"), "venue": c.get("venue"), "base_token": c.get("base_token") if full else None, "age_h": c.get("age_h"),
-         "liquidity_usd": _r(c.get("liquidity_usd"), 0), "liq_derived": c.get("liq_derived") or None, "vol_h24": _r(c.get("vol_h24"), 0),
+         "liquidity_usd": _r(c.get("liquidity_usd"), 0), "liq_derived": c.get("liq_derived") or None, "vol_h24": _r(c.get("vol_h24"), 0), "vol_h1": _r(c.get("vol_h1"), 0),
          "mcap_usd": _r(c.get("mcap_usd"), 0), "tx_m15": _tx(c.get("tx_m15")), "tx_h1": _tx(c.get("tx_h1")), "pc_h1": _r(c.get("pc_h1"), 1),
          "pc_m5": _r(c.get("pc_m5"), 1) if full else None, "score": c.get("score") if full else None, "fails": c.get("fails"), "src": c.get("src") if full else None}
     if c.get("wallet"): d["wallet"] = {k: c["wallet"].get(k) for k in ("n", "of", "wallets")}

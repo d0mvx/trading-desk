@@ -67,7 +67,7 @@ PARAMS = {
     "rugpattern.R10_MAX_RED1M":             _P("rugpattern", "R10_MAX_RED1M", "max", 0.12, 0.20, "red10", "judge: rule 10 dump candle", None, 0.01, "Regel 10: max. Einbruch einer 1m-Kerze (10 min)"),
 }
 R7_PARTNER = {"rugpattern.R7_MIN_PCT": ("r7_share", "rugpattern.R7_MIN_SHARE"), "rugpattern.R7_MIN_SHARE": ("f1_pct", "rugpattern.R7_MIN_PCT")}
-FORBIDDEN_PREFIXES = ("meme.FIXED_TICKET", "meme.TICKET_PCT", "meme.MIN_TICKET", "meme.LIQ_CAP", "meme.MAX_OPEN", "meme.TOTAL_MAX_OPEN",
+FORBIDDEN_PREFIXES = ("entry_rules.", "rugpattern.R3_", "newpairs.NP_MAX_OPEN", "newpairs.TOTAL_MAX_OPEN", "meme.FIXED_TICKET", "meme.TICKET_PCT", "meme.MIN_TICKET", "meme.LIQ_CAP", "meme.MAX_OPEN", "meme.TOTAL_MAX_OPEN",
                       "newpairs.MAX_OPEN", "meme.STOP_LOSS", "meme.MAIN_EXIT", "meme.TRAIL", "meme.TIME_STOP", "meme.EXIT", "newpairs.EXIT",
                       "meme.DAILY_DD", "meme.RC_", "meme.I18_", "meme.PAPER", "ALPACA", "alp_", "killswitch", "scan.COOLDOWN", "meme.JUDGE_BUDGET",
                       # USER ORDER 2026-10-24 01:24/01:25: exit regime (TP ladder, fixed post-TP stop, no trailing/lock), fast exits, check cadence

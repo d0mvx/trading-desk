@@ -38,6 +38,10 @@ R10_WIN_S = 600
 CHASE_COOLDOWN_MIN = 60   # USER ORDER 2026-10-23 17:43: rule 9/10 block -> mint + pool cooldown (meme.chase_cooldown)
 NP_R9_MAX_RUN15 = 1.0      # newpairs (2-15 min old curve coins): same run-up / dump-candle limits, no "young" rule (all are young)
 NP_R10_MAX_RED1M = 0.20
+# USER ORDER 2026-10-24 13:34 "order rule 3 - not mid-rocket" (stricter than rule 9; both stay): >= R3_GREEN_RUN consecutive green 1m candles within
+# the last R3_WIN candles AND price >= +R3_MIN_RUN10 vs the close 10 min ago. In-sample (1.5k main/NP entries): 108 blocked, 77 losers / 31 winners, net +0.37 ticket units.
+# "order rule 2 - no dead volume" for NEW PAIRS (candle based; main uses the scan 1h volume in entry_rules): 1h USD volume of the 1m candles >= entry_rules.MIN_VOL_H1_USD.
+R3_WIN = 10; R3_GREEN_RUN = 6; R3_MIN_RUN10 = 0.20
 LAUNCH_MATCH = 0.02        # first 1m candle open must equal the first 1h candle open (= launch price) within 2%
 try:   # 2026-10-22 SELF-LEARN (USER ORDER): learner_overrides.json may adjust allowlisted thresholds above (bounded, gated, kill switch)
     import sys as _sys; _sys.path.insert(0, DESK if "DESK" in globals() else os.path.expanduser("~/.desk"))
@@ -140,8 +144,12 @@ def chase_metrics(m1, now):
     def run(sec):
         b = close_at(sec); return px / b - 1 if b > 0 else 0.0
     w = [x for x in m1 if x[0] >= now - R10_WIN_S]
+    run_g = best = 0
+    for x in m1[-R3_WIN:]:
+        run_g = run_g + 1 if x[4] > x[1] else 0; best = max(best, run_g)
     return {"run15": run(900), "run30": run(1800), "n60": sum(1 for x in m1 if x[0] >= now - 3600),
-            "red10": max([(x[1] - x[4]) / x[1] for x in w if x[1] > 0] or [0.0]), "px": px}
+            "red10": max([(x[1] - x[4]) / x[1] for x in w if x[1] > 0] or [0.0]), "px": px,
+            "run10": run(600), "maxgreen": best, "v60": sum(x[5] for x in m1 if x[0] > now - 3600)}
 
 def chase_verdict(m, newpairs=False):
     if not m: return None
@@ -153,6 +161,13 @@ def chase_verdict(m, newpairs=False):
     red = NP_R10_MAX_RED1M if newpairs else R10_MAX_RED1M
     if m["red10"] >= red:
         return f"rule 10 · dump candle: -{m['red10']*100:.0f}% in one 1m candle within {R10_WIN_S//60} min (max -{red*100:.0f}%)"
+    if m.get("maxgreen", 0) >= R3_GREEN_RUN and m.get("run10", 0) >= R3_MIN_RUN10:
+        return (f"order rule 3 · mid-rocket: {m['maxgreen']} green 1m candles in a row, +{m['run10']*100:.0f}% in 10 min "
+                f"(max {R3_GREEN_RUN - 1} in a row or +{R3_MIN_RUN10*100:.0f}%)")
+    if newpairs and m.get("v60") is not None:
+        import entry_rules
+        t2 = entry_rules.vol_gate(m["v60"])
+        if t2: return t2
     return None
 
 def rule9(mint, newpairs=False, fetch=None, cache=None, upd=None, now=None):
@@ -160,7 +175,7 @@ def rule9(mint, newpairs=False, fetch=None, cache=None, upd=None, now=None):
     now = now or time.time(); e = (cache or {}).get(mint, {})
     mm = _M1.get(mint) if fetch is None else None
     if mm and time.time() - mm[0] < TTL_1M: met = chase_metrics(mm[1], now)
-    elif e.get("r9") and now - e.get("r9_at", 0) < TTL_1M: met = e["r9"]
+    elif e.get("r9") and "maxgreen" in e["r9"] and now - e.get("r9_at", 0) < TTL_1M: met = e["r9"]
     else:
         m1 = candles(mint, "1m", fetch=fetch)
         if fetch is None: _M1[mint] = (time.time(), m1)

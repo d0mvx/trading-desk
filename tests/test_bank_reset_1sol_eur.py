@@ -64,10 +64,10 @@ class BankReset1SolEur(unittest.TestCase):
 
     def test_ticket_and_caps_unchanged_and_bank_funds(self):
         m = self.m
-        self.assertEqual(m.FIXED_TICKET_EUR, 10.0); self.assertEqual(m.MAX_OPEN, 6); self.assertEqual(m.TOTAL_MAX_OPEN, 8)
+        self.assertEqual(m.FIXED_TICKET_EUR, 10.0); self.assertEqual(m.MAX_OPEN, 8); self.assertEqual(m.TOTAL_MAX_OPEN, 10)   # USER ORDER 2026-10-24 13:38: 8 main / 2 new pairs / 10 total
         self.run_reset()
         per = m.FIXED_TICKET_USD + m.ATA_RENT_SOL * 104.6          # cash locked per full position (ticket incl. fees + refundable rent)
-        self.assertGreaterEqual(int(104.59 // per), m.TOTAL_MAX_OPEN)  # 1 SOL (93.26 EUR) funds all 8 slots at today's price
+        self.assertEqual(int(104.59 // per), 9)  # 1 SOL (93.26 EUR) funds 9 full 10-EUR tickets; the 10th slot gets the cash left (size_ticket) or is skipped (< MIN_TICKET)
         # cash-limited sizing: book_add never lets cost exceed max(fixed ticket, pct x equity); pipeline caps ticket at free cash
         p = json.load(open(m.POS)); p["open"] = [pos(f"F{i}", cost=12.0, rent_usd=0.0) for i in range(8)]; json.dump(p, open(m.POS, "w"))
         self.assertLess(m.meme_state()["cash"], m.FIXED_TICKET_USD)

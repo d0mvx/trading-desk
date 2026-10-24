@@ -11,7 +11,7 @@ def series(now, closes, launch=None):
         out.append(C(t0 + 60 * i, p, max(p, c) * 1.01, min(p, c) * 0.99, c)); p = c
     return out
 
-def m(now, closes): return [(x["timestamp"] / 1000, float(x["open"]), float(x["high"]), float(x["low"]), float(x["close"]), 1.0) for x in series(now, closes)]
+def m(now, closes): return [(x["timestamp"] / 1000, float(x["open"]), float(x["high"]), float(x["low"]), float(x["close"]), 5000.0) for x in series(now, closes)]
 
 class Rule9(unittest.TestCase):
     def test_thresholds_shipped(self):

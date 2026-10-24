@@ -10,6 +10,7 @@ Data (keyless, public): pump.fun frontend-api-v3 /coins?sort=created_timestamp (
 Positions live in meme_positions.json (sleeve="newpairs") so bank, RISK (every minute in meme.py), cooldown and DD are shared."""
 import os, sys, re, json, time, fcntl, math, datetime as dt, requests
 from zoneinfo import ZoneInfo
+import entry_rules   # USER ORDER 2026-10-24 13:34: six entry rules (liquidity, 1h volume, vertical, sells<2x buys, loss streak, X = tag only)
 sys.path.insert(0, os.path.expanduser('~/.desk')); from leads import lead_id, ltag   # 2026-10-20 research upgrade: lead IDs
 DESK = os.path.expanduser("~/.desk"); sys.path.insert(0, DESK)
 BER = ZoneInfo("Europe/Berlin"); UTC = dt.timezone.utc
@@ -33,7 +34,7 @@ DEV_24H_MAX = 2; DEV_7D_MAX = 9; DEV_TTL = 1800
 TRADE_PAGES = 3; DEEP_MAX = 6; RUN_BUDGET_S = 45
 INIT_REAL_TOKENS = 793_100_000 * 10**6; TOTAL_SUPPLY_UI = 1_000_000_000
 # ---- size / exits ----
-TICKET_PCT = 0.015; NP_MAX_OPEN = 3; TOTAL_MAX_OPEN = 8   # 2026-10-21 user order: more trades
+TICKET_PCT = 0.015; NP_MAX_OPEN = 2; TOTAL_MAX_OPEN = 10   # 2026-10-21 user order: more trades; USER ORDER 2026-10-24 13:38: total 8 -> 10, NP 3 -> 2 (main 8)
 EXIT_TIERS = {   # gains relative to entry fill; tp fractions are of the INITIAL qty
  # USER ORDER 2026-10-24 01:24 (Dominic): both tiers use the main regime (meme.EXIT_REGIME): TP1 +30% 1/3, TP2 +60% 1/3, last 1/3
  # runs (TP3 2x: half of the rest, then trail -50% from peak - 01:48 order); after any TP a FIXED stop at entry -20%; no other trailing (the old trail/trail_tight/trail_after_time_stop and the STRONG
@@ -97,9 +98,12 @@ def narrative(c, terms, static, groups):
     """Returns (score 0..100, matched [{term,cat,w,field}], reasons [str])."""
     name, sym, desc = c.get("name") or "", c.get("symbol") or "", c.get("description") or ""
     fields = {"symbol": (norm(sym), squash(sym)), "name": (norm(name), squash(name)), "desc": (norm(desc), "")}
-    matched = {}
+    matched = {}; xtags = []
     for a_n, a_s, term, w, cat in terms:
         if not a_n: continue
+        if cat.startswith("trending") and not entry_rules.X_SCORE_ENABLED:   # USER ORDER 2026-10-24 13:34 rule 6: an X topic is research / a tag, never a trigger
+            if any(re.search(r"(?<![a-z0-9])" + re.escape(a_n) + r"(?![a-z0-9])", t_) for t_ in (fields["symbol"][0], fields["name"][0], fields["desc"][0])): xtags.append(term)
+            continue
         for f, (txt, sq) in fields.items():
             hit = bool(re.search(r"(?<![a-z0-9])" + re.escape(a_n) + r"(?![a-z0-9])", txt))
             if not hit and f != "desc" and len(a_s) >= 4 and " " not in txt and a_s in sq: hit = True   # TRUMPCAT, ELONDOGE
@@ -115,16 +119,19 @@ def narrative(c, terms, static, groups):
         if extra: score += extra; reasons.append(f"+{extra} extra matches")
         if any(x["cat"].startswith("trending") for x in m): score += TRENDING_BONUS; reasons.append(f"+{TRENDING_BONUS} trending on X now")
     else: reasons.append("no narrative match")
+    if xtags: reasons.append("X tag (research only, 0 pts): " + ", ".join(sorted(set(xtags))[:4]))
     imp = static.get("impersonation", {}); hosts = set(static.get("launchpad_website_hosts", []))
     tw, web, tg = (c.get("twitter") or "").strip(), (c.get("website") or "").strip(), (c.get("telegram") or "").strip()
     soc = 0
     if tw and _host(tw) in ("x.com", "twitter.com"):
         path = re.sub(r"^https?://[^/]+/", "", tw).split("?")[0].strip("/")
         handle = path.split("/")[0].lower()
-        if "/status/" in tw: soc += X_STATUS; reasons.append(f"+{X_STATUS} X post linked (@{handle})")
-        elif path.startswith("i/communities"): soc += X_COMMUNITY; reasons.append(f"+{X_COMMUNITY} X community")
+        xs = lambda v: v if entry_rules.X_SCORE_ENABLED else 0   # rule 6: X links are a tag only (0 pts) unless X_SCORE_ENABLED
+        tag = "" if entry_rules.X_SCORE_ENABLED else " (tag only, 0 pts)"
+        if "/status/" in tw: soc += xs(X_STATUS); reasons.append(f"+{xs(X_STATUS)} X post linked (@{handle}){tag}")
+        elif path.startswith("i/communities"): soc += xs(X_COMMUNITY); reasons.append(f"+{xs(X_COMMUNITY)} X community{tag}")
         elif handle in imp.get("celeb_handles", []): score += IMPERSONATE; reasons.append(f"{IMPERSONATE} impersonation: X link is @{handle}'s own account")
-        elif handle: soc += X_PROFILE; reasons.append(f"+{X_PROFILE} own X account @{handle}")
+        elif handle: soc += xs(X_PROFILE); reasons.append(f"+{xs(X_PROFILE)} own X account @{handle}{tag}")
     if web:
         h = _host(web)
         if h and not any(h == x or h.endswith("." + x) for x in hosts): soc += WEB_REAL; reasons.append(f"+{WEB_REAL} website {h}")
@@ -276,6 +283,11 @@ def safety(c, fresh, cs, dev, ts, rc_fn, rc_gates):
     elif not (PROGRESS[0] <= prog <= PROGRESS[1]): f.append(f"curve progress {prog:.0f}% outside {PROGRESS[0]:.0f}..{PROGRESS[1]:.0f}%")
     if ts["buyers"] < MIN_BUYERS: f.append(f"unique buyers {ts['buyers']} < {MIN_BUYERS}")
     if ts["buys"] <= ts["sells"]: f.append(f"buys {ts['buys']} <= sells {ts['sells']}")
+    t_ = entry_rules.bs_gate({"m15": {"buys": ts["buys"], "sells": ts["sells"]}})   # USER ORDER 2026-10-24 13:34 order rule 4 (hard 2:1 floor; the line above is stricter)
+    if t_: f.append(t_)
+    sol_ = sol_usd_of(fresh) if cs and cs.get("real_sol") is not None else None   # order rule 1: pool liquidity USD (curve: real SOL x SOL price, derived)
+    t_ = entry_rules.liq_gate("bonding_curve", cs["real_sol"] * sol_ if sol_ else None)
+    if t_: f.append(t_)
     if ts["dev_sold"]: f.append("dev has sold")
     if not ts["start_known"]: f.append("first-block snipers unknown (trade history not reached)")
     elif ts.get("sniper_pct") is not None and ts["sniper_pct"] > SNIPER_MAX_PCT: f.append(f"first-{SNIPER_SLOTS}-block snipers/bundle {ts['sniper_pct']:.1f}% > {SNIPER_MAX_PCT:.0f}%")
@@ -377,6 +389,7 @@ def run(dry=False):
         dev = dev_history(e["creator"], devc, errs)
         fails, info = safety(e, fresh, curves.get(e.get("bonding_curve")), dev, ts, meme.rugcheck_report, meme.rugcheck_gates)
         meme.chase_cooldown(fails, [e["mint"], e.get("bonding_curve")], e.get("name") or e["mint"][:8])
+        if not dry: entry_rules.log_fails(fails, e.get("name"), e["mint"], "newpairs", "bonding_curve")
         rec["traction"] = info; rec["tier"] = "strong" if sc >= STRONG else "normal"
         if len(fails) == 1 and not fails[0].startswith(DATA_FAILS) and not fails[0].startswith("rugcheck") and rc_new[0] < SHADOW_RC_NEW:
             try:   # one cheap gate failed -> confirm RugCheck would pass before calling it a single-gate miss
@@ -448,6 +461,8 @@ def enter(pick, dry, meme):
     sc, e, fresh, cs, rec = pick
     dial, age = meme.latest_dial()
     if meme.daily_halt_active(): return None, "daily drawdown halt active"
+    pz = meme._er_pause()   # USER ORDER 2026-10-24 13:34 rule 5: loss streak -> no new buys (main + new pairs) for 60 min
+    if pz: return None, pz[1]
     if not dial: return None, "no dial"
     if age > meme.DIAL_MAX_AGE_H: return None, f"dial {age:.1f}h old"
     if dial["dial"]["meme"] < 0.50: return None, f"meme dial {dial['dial']['meme']} < 0.50"
@@ -466,7 +481,7 @@ def enter(pick, dry, meme):
             if len(npo) >= NP_MAX_OPEN: return None, f"max {NP_MAX_OPEN} new-pair positions open"
             if any(o.get("token") == e["mint"] for o in p["open"]): return None, "already held"
             t1, t2 = meme.FIXED_TICKET_USD, meme.LIQ_CAP * liq   # fixed 10 EUR (user order 2026-10-21)
-            ticket = round(min(t1, t2, ms["cash"]), 2)
+            ticket = meme.size_ticket(liq, ms["cash"])
             fee, fr = meme.total_fee(ticket, "bonding_curve", mc, sol)
             if ticket < meme.MIN_TICKET or fee >= 0.10 * ticket:
                 log(f"[SIZE] NEW PAIR skip {e['symbol']}: ticket ${ticket:.2f} (fixed 10 EUR = ${t1:.2f}, 2% liq ${t2:.2f}) < min ${meme.MIN_TICKET:.2f} or fee ${fee:.3f}")

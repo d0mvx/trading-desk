@@ -96,18 +96,19 @@ class Integration(unittest.TestCase):
     def test_newpairs_safety_skips_on_rule7(self):
         import newpairs, rugpattern
         orig = rugpattern.check
+        import entry_rules; entry_rules.MIN_POOL_LIQ_USD["bonding_curve"] = 0.0   # order rule 1 (USER ORDER 13:34) would stop a curve coin earlier; restored in finally
         try:
             rugpattern.check = lambda mint, newpairs=False: (["rule 7 · first candle +500% (rug pattern; newpairs max +150%)"] if newpairs else [], [])
             ts = {"buyers": 40, "buys": 50, "sells": 10, "dev_sold": False, "start_known": True, "sniper_pct": 1.0}
             called = []
-            f, info = newpairs.safety({"mint": "M", "bonding_curve": "BC"}, {}, {"progress": 20.0, "complete": False}, {"n": 1, "n24": 1, "n7d": 1}, ts,
+            f, info = newpairs.safety({"mint": "M", "bonding_curve": "BC"}, {"usd_market_cap": 1500.0, "market_cap_quote": 10.0}, {"progress": 20.0, "complete": False, "real_sol": 5.0}, {"n": 1, "n24": 1, "n7d": 1}, ts,
                                       lambda mint: called.append(mint) or ({}, True), lambda c, r: [])
             self.assertTrue(any(x.startswith("rule 7") for x in f)); self.assertEqual(called, [])   # skipped before RugCheck
             rugpattern.check = lambda mint, newpairs=False: ([], [])
-            f, info = newpairs.safety({"mint": "M", "bonding_curve": "BC"}, {}, {"progress": 20.0, "complete": False}, {"n": 1, "n24": 1, "n7d": 1}, ts,
+            f, info = newpairs.safety({"mint": "M", "bonding_curve": "BC"}, {"usd_market_cap": 1500.0, "market_cap_quote": 10.0}, {"progress": 20.0, "complete": False, "real_sol": 5.0}, {"n": 1, "n24": 1, "n7d": 1}, ts,
                                       lambda mint: ({"score_normalised": 1}, True), lambda c, r: [])
             self.assertEqual(f, [])
-        finally: rugpattern.check = orig
+        finally: rugpattern.check = orig; entry_rules.MIN_POOL_LIQ_USD["bonding_curve"] = 40_000.0
 
 if __name__ == "__main__":
     unittest.main()

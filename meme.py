@@ -35,8 +35,8 @@ TICKET_PCT, LIQ_CAP, MIN_TICKET = 0.03, 0.02, 1.00   # 2026-10-20 01:5x: ticket 
 # Stops/TPs/caps unchanged; still capped by 2% of pool liquidity and free cash. EURUSD from frankfurter (ECB) 2026-10-20.
 FIXED_TICKET_EUR, EURUSD = 10.0, 1.1215
 FIXED_TICKET_USD = round(FIXED_TICKET_EUR * EURUSD, 2)
-MAX_OPEN = 6                                           # max open MAIN-sleeve positions, 1 per coin (token mint)
-TOTAL_MAX_OPEN = 8                                     # 2026-10-20: overall cap incl. the NEW PAIRS sleeve (newpairs.py, max 2 of them)
+MAX_OPEN = 8                                           # max open MAIN-sleeve positions, 1 per coin (token mint). USER ORDER 2026-10-24 13:38: 6 -> 8 (total 10)
+TOTAL_MAX_OPEN = 10                                    # USER ORDER 2026-10-24 13:38: overall cap 8 -> 10 incl. the NEW PAIRS sleeve (newpairs.py, max 2: NP_MAX_OPEN)
 EXIT_RATIO = 0.20; DAILY_DD = 0.20; DAILY_DD_ENABLED = False  # 2026-10-21 20:17 USER ORDER "hebe daily limit auf": daily drawdown halt OFF (SL/TP/caps unchanged)
    # 2026-10-21 USER ORDER "viel mehr machen": 4% -> 20%
 DIAL_MAX_AGE_H = 24
@@ -395,6 +395,11 @@ def close_position(o, a, reason, p, frac=1.0):
     log(f"[FILLS] SELL {('HALF ' if abs(frac - 0.5) < 1e-6 else 'PART ') if frac < 1.0 else ''}{ltag(o.get('token'))}{o['name']} (SIMULATED pump.fun) qty {qty:.4g} @ {fill_px:.10g} slip {slip:.2%} fee ${fee:.4f} -> pnl {pnl:+.4f} | {reason}")
     try: cooldown_on_close(o, c, frac)
     except Exception as e: log(f"[RISK] cooldown write failed: {e}")
+    if frac >= 1.0:   # USER ORDER 2026-10-24 13:34 rule 5: FINAL close of a main / new-pairs position -> loss streak (TP partials never count)
+        try:
+            import entry_rules; s = entry_rules.on_final_close(o, c, p, reason)
+            if s and s.get("paused_until"): log(f"[RISK] LOSS STREAK {s['streak']} -> no new buys until {s['paused_until']} (USER ORDER rule 5)")
+        except Exception as e: log(f"[RISK] loss streak update failed: {type(e).__name__}: {str(e)[:60]}")
 
 # ---------------- EXIT rules (shared by the real book and the shadow book) ----------------
 def regime_plan(old=None):
@@ -570,7 +575,7 @@ def chase_cooldown(fails, keys, name):
     rugpattern.CHASE_COOLDOWN_MIN cooldown (meme_cooldown.json = state, survives ticks and runner restarts) so the coin is not
     bought minutes later once the 10/15-min window rolls past. Main AND new pairs. Never raises; returns until or None."""
     try:
-        hit = next((x for x in (fails or []) if x.startswith(("rule 9 ·", "rule 10 ·"))), None)
+        hit = next((x for x in (fails or []) if x.startswith(("rule 9 ·", "rule 10 ·", "order rule 3 ·"))), None)
         if not hit: return None
         import rugpattern, scan
         until = scan.cooldown_add(keys, name, f"rule 9/10 block {rugpattern.CHASE_COOLDOWN_MIN} min: {hit}", minutes=rugpattern.CHASE_COOLDOWN_MIN)
@@ -578,6 +583,26 @@ def chase_cooldown(fails, keys, name):
         return until
     except Exception as e:
         log(f"[RISK] chase cooldown write failed: {type(e).__name__}: {str(e)[:80]}"); return None
+
+def size_ticket(liq_usd, cash):
+    """Ticket in USD = min(fixed 10 EUR, LIQ_CAP x pool liquidity, free cash). Cash short -> scaled down to the cash left; <= 0 -> 0.
+    The caller skips anything below MIN_TICKET (so the book can never go negative: cash = start + realized - cost - rent)."""
+    return round(max(0.0, min(FIXED_TICKET_USD, LIQ_CAP * (liq_usd or 0), cash)), 2)
+
+def _er_pause():
+    """USER ORDER 2026-10-24 13:34 rule 5: (until, text) while the loss-streak pause is on, else None. Never raises (fail-open on a read error)."""
+    try:
+        import entry_rules; return entry_rules.paused()
+    except Exception as e:
+        log(f"[RISK] loss-streak state unreadable ({type(e).__name__}): {str(e)[:60]}"); return None
+
+def entry_gates(c):
+    """USER ORDER 2026-10-24 13:34 order rules 1/2/4 for a main-sleeve candidate (entry_rules.py). Returns (fails, notes); writes the dashboard drop log."""
+    import entry_rules
+    f, n = entry_rules.main_gates(c)
+    if not entry_rules.log_fails(f, c.get("name"), c.get("base_token"), "main", c.get("venue")):
+        entry_rules.log_event("pass", 0, c.get("name"), c.get("base_token"), "main", "passed order rules 1/2/4", c.get("venue"))
+    return f, n
 
 def judge_metrics(c, watch=False):
     """Deterministic entry gates on scan data. Returns list of failure strings (empty = pass).
@@ -725,6 +750,7 @@ def pipeline(dry=False):
     elif not cands: reason = "no candidates passed SCAN"
     elif len([o for o in p["open"] if o.get("sleeve") != "newpairs"]) >= MAX_OPEN: reason = f"max {MAX_OPEN} open positions reached"
     elif len(p["open"]) >= TOTAL_MAX_OPEN: reason = f"overall max {TOTAL_MAX_OPEN} open positions (incl. new pairs) reached"
+    elif _er_pause(): reason = _er_pause()[1]   # USER ORDER 2026-10-24 13:34 rule 5: 2 losing closes in a row -> no new buys for 60 min (shadow keeps running)
     decisions, top, rc_down, passers = [], None, None, []
     use_jev = bool(jev and jev.active()); want = jev.max_cands() if use_jev else 1
     held = {o.get("token") for o in p["open"]} | {o["pool"] for o in p["open"]}
@@ -775,10 +801,16 @@ def pipeline(dry=False):
             add_shadow(c, chain(c, w), "blocked:bonding_curve")
         else:
             f = judge_metrics(c, watch=bool(w))
+            if not f:   # USER ORDER 2026-10-24 13:34: order rules 1 (liquidity) / 2 (1h volume) / 4 (sells < 2x buys), real buys only
+                f, er_notes = entry_gates(c)
+                for n_ in er_notes: _log(f"[JUDGE] [{lead_id(c.get('base_token'))}] {c['name']}: {n_}")
             if not f:   # USER ORDER 2026-10-21 19:34/19:37: rule 7 (first-candle launch pump) + rule 8 (bot-wash), pump.fun candles, 0 GT calls
                 f, rp_notes = rugpattern_fails(c)
                 for n_ in rp_notes: _log(f"[JUDGE] [{lead_id(c.get('base_token'))}] {c['name']}: {n_}")
                 chase_cooldown(f, [c.get("base_token"), c.get("pool")], c["name"])
+                try:
+                    import entry_rules; entry_rules.log_fails(f, c["name"], c.get("base_token"), "main", c.get("venue"))
+                except Exception: pass
             if f:
                 r = ("judge: " if not w else "judge (watchlist): ") + "; ".join(f)
                 if len(f) == 1: add_shadow(c, chain(c, w, pre=f))
@@ -883,7 +915,7 @@ def pipeline(dry=False):
     # ---- SIZE ----
     meme_bank = ms["equity"]
     t1, t2 = FIXED_TICKET_USD, LIQ_CAP * top["liquidity_usd"]   # fixed 10 EUR (user order 2026-10-21)
-    ticket = round(min(t1, t2, ms["cash"]), 2)
+    ticket = size_ticket(top["liquidity_usd"], ms["cash"])
     fee_est, fr = total_fee(ticket, top["venue"], top["mcap_usd"], top["sol_usd"])
     if ticket < MIN_TICKET or fee_est >= 0.10 * ticket:
         log(f"[SIZE] skip: ticket ${ticket:.2f} (fixed 10 EUR = ${t1:.2f}, 2% liq=${t2:.2f}, cash ${ms['cash']:.2f}) "

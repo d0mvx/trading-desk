@@ -326,3 +326,17 @@ runner unless the data clearly shows a volume-death exit is better. Configurable
   marker, learner, shadow), test_profit_lock_cooldown.py (lock tests -> removal tests), test_meme_stops.py (GT fallback check index).
 - **Revert:** ~/.desk/backup_20261024_0125_exit_rebuild/ (meme.py, newpairs.py, shadow.py, learner.py, build_dashboard.py,
   dash_savip.py, CHANGELOG, KNOWLEDGE, test_profit_lock_cooldown.py); delete tests/test_exit_regime.py.
+
+## 2026-10-24 13:34 (+13:37 / 13:38) — USER ORDER (Dominic): six entry rules, X = tag only, position limits 8 / 2 / 10
+- **What (paper only; meme main + new pairs; shadow tracking unchanged):** new `entry_rules.py` + hooks. The six rules are DECIDING criteria on top of the old filters (rules 7-10, cooldown, scan filters):
+  1. pool liquidity >= $40K (`entry_rules.MIN_POOL_LIQ_USD`, per venue; USD pool liquidity, NOT mcap; curve liquidity = real SOL x SOL price, derived);
+  2. 1h volume >= $50K (`MIN_VOL_H1_USD`; main = scan 1h volume, new pairs = sum of 1m candles; missing data -> allowed + note);
+  3. "order rule 3 · not mid-rocket": >= 6 green 1m candles in a row within the last 10 AND >= +20% in 10 min (`rugpattern.R3_*`; rule 9/10 stay; 60-min chase cooldown applies);
+  4. sells >= 2x buys in m5 or m15 -> no entry (`MAX_SELLS_PER_BUY`; scan already drops sells > buys, so no extra blocks in-sample);
+  5. 2 losing FINAL closes in a row (total realized PnL of the position < 0; TP partials never count; bank-reset closes ignored) -> 60 min buy pause main + new pairs; reset on a win and after the pause; persisted in `loss_streak.json` (state branch); shadow unaffected;
+  6. X is research/tag only: new-pairs narrative gets 0 pts from X topics, X links, trending bonus (`X_SCORE_ENABLED=False`); no X API / X trigger exists in the trading code; never FOMO or Dominic's logins.
+- **Limits (USER ORDER 13:38):** max 10 open meme positions = main 8 (`meme.MAX_OPEN`) + new pairs 2 (`NP_MAX_OPEN`), total 10 (`TOTAL_MAX_OPEN`). Ticket (10 EUR) and bank unchanged; `meme.size_ticket()` = min(ticket, 2% liq, cash), < $1 skipped -> cash never negative; 104.64 USD bank = 9 full tickets, the 10th gets the cash left.
+- **Learner:** `entry_rules.*`, `rugpattern.R3_*`, `newpairs.NP_MAX_OPEN/TOTAL_MAX_OPEN` are forbidden for the learner (tighten-only by user; `meme.J_MIN_BS_M15` floor 1.0 is already stricter than 2:1).
+- **Dashboard:** section "Entry-Regeln" (N analysed / M dropped, per-rule counts, "Dropped X rule N" feed, pause status) from `logs/entry_rules_drops.jsonl`; RISK/SIZE/NP texts updated.
+- **Caveat:** the $40K floor applies literally to bonding curves too; derived curve liquidity stays <~ $8K, so new pairs are effectively blocked. Revert/ease via `entry_rules.MIN_POOL_LIQ_USD["bonding_curve"]`.
+- **Tests:** tests/test_entry_rules.py (+ updated limits tests); backup `~/.desk/backup_20261024_1334_entry_rules/`.
