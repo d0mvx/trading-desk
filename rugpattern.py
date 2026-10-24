@@ -20,6 +20,7 @@ rule 10 · dump candle: any 1m candle in the last 10 min with open->close <= -R1
     see CHANGELOG_research.md 2026-10-22 "rule 9/10".
 Missing data: rule 7 -> newpairs SKIP ('no first-candle data'), main sleeve ALLOW + log; rule 8/9/10 -> ALLOW + log (both)."""
 import os, json, time, fcntl, statistics as st, requests
+import entry_rules
 
 DESK = os.path.expanduser("~/.desk")
 CACHE = f"{DESK}/scan/rugpattern_cache.json"; LOCK = f"{DESK}/scan/.rugpattern.lock"
@@ -153,19 +154,19 @@ def chase_metrics(m1, now):
 
 def chase_verdict(m, newpairs=False):
     if not m: return None
+    legacy = not entry_rules.ENTRY_RULES_ONLY   # USER ORDER 2026-10-24 13:57: rules 9 / 10 / young-pool are OFF; only order rule 3 (+ NP volume rule 2) stay
     lim = NP_R9_MAX_RUN15 if newpairs else R9_MAX_RUN15
-    if m["run15"] >= lim:
+    if legacy and m["run15"] >= lim:
         return f"rule 9 · chase: +{m['run15']*100:.0f}% in 15 min (vertical run-up; max +{lim*100:.0f}%)"
-    if not newpairs and m["n60"] < R9_YOUNG_N60 and m["run30"] >= R9_YOUNG_MAX_RUN30:
+    if legacy and not newpairs and m["n60"] < R9_YOUNG_N60 and m["run30"] >= R9_YOUNG_MAX_RUN30:
         return f"rule 9 · chase: young pool ({m['n60']} active min/1h < {R9_YOUNG_N60}) +{m['run30']*100:.0f}% in 30 min (max +{R9_YOUNG_MAX_RUN30*100:.0f}%)"
     red = NP_R10_MAX_RED1M if newpairs else R10_MAX_RED1M
-    if m["red10"] >= red:
+    if legacy and m["red10"] >= red:
         return f"rule 10 · dump candle: -{m['red10']*100:.0f}% in one 1m candle within {R10_WIN_S//60} min (max -{red*100:.0f}%)"
     if m.get("maxgreen", 0) >= R3_GREEN_RUN and m.get("run10", 0) >= R3_MIN_RUN10:
         return (f"order rule 3 · mid-rocket: {m['maxgreen']} green 1m candles in a row, +{m['run10']*100:.0f}% in 10 min "
                 f"(max {R3_GREEN_RUN - 1} in a row or +{R3_MIN_RUN10*100:.0f}%)")
     if newpairs and m.get("v60") is not None:
-        import entry_rules
         t2 = entry_rules.vol_gate(m["v60"])
         if t2: return t2
     return None
@@ -226,11 +227,15 @@ def check(mint, newpairs=False, fetch=None, save=True):
     """Returns (fails, notes). fails = skip reasons (rule 7 / 9 / 10 / 8 texts, or 'no first-candle data' for newpairs);
     notes = data-unavailable messages that were ALLOWED (to be logged by the caller)."""
     cache = _load() if save else {}; upd = {}; fails, notes = [], []
+    legacy = not entry_rules.ENTRY_RULES_ONLY   # 2026-10-24 13:57: rules 7 + 8 are OFF (rule 9/10 text paths too); order rule 3 stays
     try:
+        if not legacy: raise StopIteration
         t7, _ = rule7(mint, newpairs=newpairs, fetch=fetch, cache=cache, upd=upd)
         if t7: fails.append(t7)
     except Budget as e:
         fails.append(f"not judged: rule 7/8 not checked ({e}) -> no buy this run")
+    except StopIteration:
+        pass
     except NoData as e:
         if newpairs: fails.append(f"rule 7 · no first-candle data ({e})")
         else: notes.append(f"rule 7 n/a ({e}) -> allowed")
@@ -240,12 +245,16 @@ def check(mint, newpairs=False, fetch=None, save=True):
     except Budget as e:
         if not any(x.startswith("not judged") for x in fails): fails.append(f"not judged: rule 9/10 not checked ({e}) -> no buy this run")
     except NoData as e:
-        notes.append(f"rule 9/10 n/a ({e}) -> allowed")
+        if newpairs and not legacy: fails.append(f"data n/a: no 1m candles ({e}) -> no buy")   # hard data-error guard (new pairs only, as before)
+        else: notes.append(f"rule 9/10 n/a ({e}) -> allowed")
     try:
+        if not legacy: raise StopIteration
         t8, _ = rule8(mint, fetch=fetch, cache=cache, upd=upd)
         if t8: fails.append(t8)
     except Budget as e:
         if not any(x.startswith("not judged") for x in fails): fails.append(f"not judged: rule 8 not checked ({e}) -> no buy this run")
+    except StopIteration:
+        pass
     except NoData as e:
         notes.append(f"rule 8 n/a ({e}) -> allowed")
     if save and upd:

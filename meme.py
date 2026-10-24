@@ -35,8 +35,8 @@ TICKET_PCT, LIQ_CAP, MIN_TICKET = 0.03, 0.02, 1.00   # 2026-10-20 01:5x: ticket 
 # Stops/TPs/caps unchanged; still capped by 2% of pool liquidity and free cash. EURUSD from frankfurter (ECB) 2026-10-20.
 FIXED_TICKET_EUR, EURUSD = 10.0, 1.1215
 FIXED_TICKET_USD = round(FIXED_TICKET_EUR * EURUSD, 2)
-MAX_OPEN = 8                                           # max open MAIN-sleeve positions, 1 per coin (token mint). USER ORDER 2026-10-24 13:38: 6 -> 8 (total 10)
-TOTAL_MAX_OPEN = 10                                    # USER ORDER 2026-10-24 13:38: overall cap 8 -> 10 incl. the NEW PAIRS sleeve (newpairs.py, max 2: NP_MAX_OPEN)
+MAX_OPEN = 10                                          # USER ORDER 2026-10-24 13:57: ONE shared pool (main + new pairs): max 10 open, 1 per coin (token mint); no 8/2 split
+TOTAL_MAX_OPEN = 10                                    # overall cap incl. the NEW PAIRS sleeve (same pool, newpairs.NP_MAX_OPEN = 10)
 EXIT_RATIO = 0.20; DAILY_DD = 0.20; DAILY_DD_ENABLED = False  # 2026-10-21 20:17 USER ORDER "hebe daily limit auf": daily drawdown halt OFF (SL/TP/caps unchanged)
    # 2026-10-21 USER ORDER "viel mehr machen": 4% -> 20%
 DIAL_MAX_AGE_H = 24
@@ -607,6 +607,8 @@ def entry_gates(c):
 def judge_metrics(c, watch=False):
     """Deterministic entry gates on scan data. Returns list of failure strings (empty = pass).
     watch=True (coin already on the dip watchlist): price h1 lower bound relaxed to J_PC_H1_WATCH_MIN."""
+    import entry_rules
+    if entry_rules.ENTRY_RULES_ONLY: return []   # USER ORDER 2026-10-24 13:57: judge thresholds are OFF (unique buyers, buys/sells m15, buyers/buy, price h1 range)
     f = []; h1 = c.get("tx_h1") or {}; m15 = c.get("tx_m15") or {}
     ub = h1.get("buyers"); buys = h1.get("buys") or 0
     if ub is None: f.append("unique buyers h1 n/a")
@@ -656,6 +658,11 @@ def rugcheck_gates(c, rep):
     if ((rep.get("transferFee") or {}).get("pct") or 0) != 0: f.append(f"transfer fee {(rep.get('transferFee') or {}).get('pct')}%")
     if rep.get("rugged"): f.append("flagged rugged")
     dang = [x.get("name") for x in rep.get("risks") or [] if x.get("level") == "danger"]
+    import entry_rules
+    if entry_rules.ENTRY_RULES_ONLY:   # USER ORDER 2026-10-24 13:57: only unbuyable / honeypot-type danger flags stay; LP lock, creator %, top holder %, insiders are OFF
+        dang = [d for d in dang if re.search(r"honeypot|freeze|mint auth|transfer fee|rug|sell|blacklist", str(d), re.I)]
+        if dang: f.append("danger: " + ", ".join(dang))
+        return f
     if dang: f.append("danger: " + ", ".join(dang))
     mk = rep.get("markets") or []
     if c["venue"] == "pumpswap":
@@ -682,6 +689,8 @@ def ohlcv_highs(pool, deadline):
 
 def dip_check(c, w, ohlcv_left, deadline):
     """Returns (ok, text, highs_to_store, used_ohlcv). w = existing watchlist entry or None."""
+    import entry_rules
+    if entry_rules.ENTRY_RULES_ONLY: return True, "no dip filter (six rules only)", [], False   # USER ORDER 2026-10-24 13:57
     t = now().timestamp(); px = c.get("price_usd")
     if not px: return False, "dip: price n/a", [], False
     highs = [(t, px)] + [(float(a), float(b)) for a, b in (w or {}).get("highs", [])]
@@ -708,8 +717,8 @@ SHADOW_SCAN_SINGLES = 15   # single-SCAN-filter rejects evaluated per run for th
 
 def gate_key(text):
     """Stable gate name from a failure text: 'unique buyers h1 12 < 50' -> 'unique buyers h1'."""
-    m_ = re.match(r"rule (\d+) · ([A-Za-z\- ]+)", str(text).strip())
-    if m_: return f"rule {m_.group(1)} {m_.group(2).strip()}"[:60]
+    m_ = re.match(r"((?:order )?)rule (\d+) · ([A-Za-z\- ]+)", str(text).strip())
+    if m_: return f"{m_.group(1)}rule {m_.group(2)} {m_.group(3).strip()}"[:60]
     k = re.split(r"\s[\d+\-~$(<>=]|:\s", str(text).strip(), maxsplit=1)[0] if not str(text).startswith("danger:") else str(text)[:60]
     return k.strip()[:60] or "?"
 
@@ -741,18 +750,21 @@ def pipeline(dry=False):
     _log = log if not dry else (lambda l: print("[DRY] " + l))
     # ---- JUDGE (deterministic, no LLM): candidates in rank order, buy the first that passes every gate ----
     reason = None
+    import entry_rules
+    dial_gate = (not entry_rules.ENTRY_RULES_ONLY) or entry_rules.KEEP_DIAL_GATE   # 2026-10-24 13:57: dial stand-down is not one of the six rules
+    dm_txt = (dial or {}).get("dial", {}).get("meme", "n/a")
     if halted: reason = "daily drawdown halt active"
-    elif not dial: reason = "no dial file"
-    elif age > DIAL_MAX_AGE_H: reason = f"dial is {age:.1f}h old (>24h)"
-    elif "liquidity" in dial["degraded"] or any(x in dial["degraded"] for x in ("WALCL", "WTREGEN", "RRPONTSYD", "VIXCLS", "BTC/USD", "SOL/USD")):
+    elif dial_gate and not dial: reason = "no dial file"
+    elif dial_gate and age > DIAL_MAX_AGE_H: reason = f"dial is {age:.1f}h old (>24h)"
+    elif dial_gate and ("liquidity" in dial["degraded"] or any(x in dial["degraded"] for x in ("WALCL", "WTREGEN", "RRPONTSYD", "VIXCLS", "BTC/USD", "SOL/USD"))):
         reason = f"meme dial inputs degraded {dial['degraded']}"
-    elif dial["dial"]["meme"] < 0.50: reason = f"meme dial {dial['dial']['meme']} < 0.50 (stand down)"
+    elif dial_gate and dial["dial"]["meme"] < 0.50: reason = f"meme dial {dial['dial']['meme']} < 0.50 (stand down)"
     elif not cands: reason = "no candidates passed SCAN"
     elif len([o for o in p["open"] if o.get("sleeve") != "newpairs"]) >= MAX_OPEN: reason = f"max {MAX_OPEN} open positions reached"
     elif len(p["open"]) >= TOTAL_MAX_OPEN: reason = f"overall max {TOTAL_MAX_OPEN} open positions (incl. new pairs) reached"
     elif _er_pause(): reason = _er_pause()[1]   # USER ORDER 2026-10-24 13:34 rule 5: 2 losing closes in a row -> no new buys for 60 min (shadow keeps running)
     decisions, top, rc_down, passers = [], None, None, []
-    use_jev = bool(jev and jev.active()); want = jev.max_cands() if use_jev else 1
+    use_jev = bool(jev and jev.active()) and not entry_rules.ENTRY_RULES_ONLY; want = jev.max_cands() if use_jev else 1
     held = {o.get("token") for o in p["open"]} | {o["pool"] for o in p["open"]}
     wl = scan.watchlist_active(); wl_added = wl_hit = 0; ohlcv_left = OHLCV_PER_RUN
     cool = scan.cooldown_active()
@@ -772,6 +784,7 @@ def pipeline(dry=False):
         ok, dtxt, _, _ = dip_check(c, w, 0, time.time() + 1)
         return [] if ok or "candle high not yet fetched" in dtxt else [(dip_key(dtxt), dtxt)]
     def chain(c, w, pre=None):
+        if pre is None and entry_rules.ENTRY_RULES_ONLY: pre = entry_rules.main_gates(c)[0]   # rules 1/2/4 (rule 3 needs candles: not evaluated for shadow)
         f = [("judge: " + gate_key(x), x) for x in (judge_metrics(c, watch=bool(w)) if pre is None else pre)]
         if len(f) > 1: return f
         g = rc_try(c)
@@ -796,7 +809,7 @@ def pipeline(dry=False):
         elif over: r = "not judged: run time budget"
         elif is_held: r = "already held (1 position per coin)"
         elif is_cool: r = "cooldown: " + ((cool.get(c["base_token"]) or cool.get(c["pool"]) or {}).get("reason") or "stopped out / losing close < 24h ago")[:90]
-        elif c["venue"] == "bonding_curve":   # upgrade 4 (2026-10-20 19:5x): main sleeve makes no real buys on the curve
+        elif c["venue"] == "bonding_curve" and not entry_rules.ENTRY_RULES_ONLY:   # upgrade 4 (2026-10-20 19:5x): main sleeve makes no real buys on the curve
             r = "bonding curve: main sleeve makes no real buys on the curve (shadow only)"
             add_shadow(c, chain(c, w), "blocked:bonding_curve")
         else:
@@ -814,6 +827,9 @@ def pipeline(dry=False):
             if f:
                 r = ("judge: " if not w else "judge (watchlist): ") + "; ".join(f)
                 if len(f) == 1: add_shadow(c, chain(c, w, pre=f))
+            elif c["venue"] == "bonding_curve":   # only reachable with ENTRY_RULES_ONLY (a curve token passed the six rules): this fill path prices PumpSwap only
+                r = "bonding curve: passed the six rules, but the main fill path has no curve route (new-pairs path buys curves)"
+                add_shadow(c, chain(c, w), "blocked:bonding_curve")
             else:
                 try:
                     rep, cached = rugcheck_report(c["base_token"]); g = rugcheck_gates(c, rep)
@@ -844,7 +860,7 @@ def pipeline(dry=False):
                     _log(f"[JUDGE] rugcheck unavailable ({rc_down}) for {c['name']} -> no buy this run")
         decisions.append({"lead": lead_id(c.get("base_token")), "pool": c["pool"], "name": c["name"], "venue": c["venue"], "score": c["score"],
                           "decision": "PASS" if r is None else ("WATCH" if (r or "").startswith("watchlist") else "DECLINED"),
-                          "reason": r or ("passes all gates incl. RugCheck + " + c.get("_dip", "dip")), "src": c.get("src"), "wallet": c.get("wallet")})
+                          "reason": r or ("passes the six rules + safety checks" if entry_rules.ENTRY_RULES_ONLY else "passes all gates incl. RugCheck + " + c.get("_dip", "dip")), "src": c.get("src"), "wallet": c.get("wallet")})
     # single SCAN-filter rejects (PumpSwap): shadow if every JUDGE/RugCheck/dip gate would pass
     for c in (sc.get("single_fail") or [])[:SHADOW_SCAN_SINGLES]:
         if time.time() - t0 > JUDGE_BUDGET_S: break
@@ -907,7 +923,7 @@ def pipeline(dry=False):
         except Exception as e: log(f"[SHADOW] open failed: {type(e).__name__}: {str(e)[:120]}")
     if not top:
         _shadow(); _log(f"[JUDGE] no trade: {reason}"[:600]); return {"scan": sc, "decisions": decisions, "reason": reason, "watchlist": wl, "shadow": sh}
-    _log(f"[JUDGE] PICK {top['name']} [{top['venue']}] {top.get('_dip', '')} | buyers h1 {top['tx_h1'].get('buyers')} price h1 {top['pc_h1']:+.0f}% mcap ${top['mcap_usd']:,.0f} liq ${top['liquidity_usd']:,.0f} | RugCheck ok | meme dial {dial['dial']['meme']} (age {age:.1f}h)")
+    _log(f"[JUDGE] PICK {top['name']} [{top['venue']}] {top.get('_dip', '')} | buyers h1 {(top.get('tx_h1') or {}).get('buyers')} price h1 {top.get('pc_h1') if top.get('pc_h1') is None else format(top['pc_h1'], '+.0f') + '%'} mcap ${top['mcap_usd'] or 0:,.0f} liq ${top['liquidity_usd']:,.0f} vol1h ${top.get('vol_h1') or 0:,.0f} | RugCheck ok | meme dial {dm_txt}")
     if dry: _shadow(); return {"scan": sc, "decisions": decisions, "pick": top, "watchlist": wl, "shadow": sh}
     blk_i18 = pick_shadow_hook(top)   # I-18 gate (fail-open) + shadow fields; None = buy proceeds
     if blk_i18:
@@ -920,7 +936,7 @@ def pipeline(dry=False):
     if ticket < MIN_TICKET or fee_est >= 0.10 * ticket:
         log(f"[SIZE] skip: ticket ${ticket:.2f} (fixed 10 EUR = ${t1:.2f}, 2% liq=${t2:.2f}, cash ${ms['cash']:.2f}) "
             f"min ${MIN_TICKET:.2f}, fee ${fee_est:.3f}"); _shadow(); return
-    log(f"[SIZE] ticket ${ticket:.2f} = min({TICKET_PCT:.0%} x meme bank ${meme_bank:.2f} x dial {dial['dial']['meme']} = ${t1:.2f}, 2% liq ${t2:.2f}); fee rate {fr:.2%} + ${NETWORK_FEE_USD + PRIORITY_FEE_USD:.3f} network/priority")
+    log(f"[SIZE] ticket ${ticket:.2f} = min({TICKET_PCT:.0%} x meme bank ${meme_bank:.2f} x dial {dm_txt} = ${t1:.2f}, 2% liq ${t2:.2f}); fee rate {fr:.2%} + ${NETWORK_FEE_USD + PRIORITY_FEE_USD:.3f} network/priority")
     # ---- FILLS (simulated) at a fresh live price: DexScreener first (0 GT calls), GT multi fallback (1 call, 15 s budget) ----
     a = None
     try: a = ds_prices([{"pool": top["pool"], "token": top["base_token"], "venue": "pumpswap", "sol_usd": top["sol_usd"]}]).get(top["pool"])

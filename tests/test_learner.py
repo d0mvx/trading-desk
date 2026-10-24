@@ -173,6 +173,6 @@ class Bases(unittest.TestCase):
         self.assertEqual(L.BASE.get("scan.RULES.pumpswap.liq_min"), 12_000); self.assertEqual(L.BASE.get("meme.J_MIN_BUYERS_H1"), 50)
         self.assertEqual(L.BASE.get("meme.J_PC_H1.1"), 300.0); self.assertEqual(L.BASE.get("rugpattern.R7_MIN_PCT"), 10.0)
         self.assertEqual(set(L.BASE) >= set(L.PARAMS), True)
-        self.assertEqual((meme.MAX_OPEN, meme.TOTAL_MAX_OPEN), (8, 10))
+        self.assertEqual((meme.MAX_OPEN, meme.TOTAL_MAX_OPEN), (10, 10))
 
 if __name__ == "__main__": unittest.main()

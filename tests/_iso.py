@@ -25,3 +25,9 @@ def pos(token, sleeve="main", cost=1.0, venue="pumpswap", price=1.0, **kw):
          "stop_loss": {"pumpswap": 0.20, "bonding_curve": 0.30}[venue], "entry_fee": 0.05, "simulated": True}
     if sleeve != "main": o["sleeve"] = sleeve
     o.update(kw); return o
+
+def legacy_filters(tc):
+    """USER ORDER 2026-10-24 13:57: ENTRY_RULES_ONLY=True is the default (old entry filters OFF). Tests of the old filters switch them back on."""
+    import entry_rules
+    old = entry_rules.ENTRY_RULES_ONLY; entry_rules.ENTRY_RULES_ONLY = False
+    tc.addCleanup(lambda: setattr(entry_rules, "ENTRY_RULES_ONLY", old))

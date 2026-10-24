@@ -179,7 +179,7 @@ bots = [  # name, variant, status, note
      f"dial {dial['date']} meme {dial['dial']['meme']}" if dial else "no dial yet"),
     ("SCAN", "outline", "active" if meme_sched else "idle", last_tag("SCAN") or "GeckoTerminal + pump.fun feeds + DexScreener"),
     ("JUDGE", "mask", "active" if meme_sched else "idle", (last_tag("JUDGE") or "buyers/flow gates + RugCheck") + " · PumpSwap only (curve → shadow)" + (" · Jev ON" if jev_on else " · Jev off (no key)")),
-    ("SIZE", "outline", "active" if meme_sched else "idle", f"fixed ticket 10 EUR (cash-short: remaining cash, < $1 skipped) · max 8 open main + NEW PAIRS max 2 = 10 overall (USER ORDER 24.10.) · bank {money(meme['equity']) if meme else 'n/a'}"),
+    ("SIZE", "outline", "active" if meme_sched else "idle", f"fixed ticket 10 EUR (cash-short: remaining cash, < $1 skipped) · ONE shared pool: max 10 open (main + new pairs together, no split; USER ORDER 24.10. 13:57) · bank {money(meme['equity']) if meme else 'n/a'}"),
     ("FILLS", "mouth", "active" if n_open or n_closed else ("idle" if meme_sched else "not set up"), f"pump.fun simulated · {n_open} open/{n_closed} closed"),
     ("TREND", "solid", "halted" if kill_today else ("active" if runner_sched else "idle"),
      f"TQQQ/SHY 35% · 15:45 NY · {money(alp_mv.get('trend', 0))} · last {last_dry[1] if last_dry else '—'}"),
@@ -291,10 +291,9 @@ if rej_rec:
                     for c in rej_rec.get("passed_candidates", []))
     rrows = "".join(row(c, "SCAN", "<br>".join(esc(f) for f in c["fails"])) for c in rej_rec.get("rejects", [])[:25])
     hdr = '<tr><th>TOKEN</th><th>MCAP</th><th>LIQ</th><th>VOL 24H</th><th>AGE</th><th>B/S M15</th><th>B/S H1</th><th>REJECTED BY</th></tr>'
-    jnone = ('<div class="sub">JUDGE gates (rank order, first pass is bought, max 1/run): unique buyers h1 ≥ 50 · buys/sells m15 ≥ 1.2 · '
-             'buyers/buy h1 ≥ 0.25 · price h1 +10..+300% (watchlisted: ≥ 0%) · then RugCheck: no mint/freeze authority, transfer fee 0, not rugged, no danger risks, '
-             'PumpSwap LP locked ≥ 95%, creator ≤ 5%, largest non-pool holder ≤ 15%, insiders ≤ 10 (unreachable → no buy) · then DIP: price 12–40% below its 60-min high and m5 ≥ −10%, '
-             'otherwise → WATCHLIST (60 min) and re-checked every scan · 24h COOLDOWN after a stop-out / losing close</div>')
+    jnone = ('<div class="sub">USER ORDER 24.10. 13:57: ONLY the six entry rules decide a buy (liq ≥ $40K · 1h volume ≥ $50K · not mid-rocket · sells &lt; 2× buys · 2 losses = 10 min pause · X = tag only); '
+             'judge thresholds (price h1 range, unique buyers, buys/sells m15, buyers/buy), the old scan filters (age, mcap, 24h vol, buys, wash, sells&gt;buys), rules 7–10, dip/watchlist and the dial stand-down are OFF. '
+             'STAYS: hard safety (missing price/mcap/data, quote not SOL, curve complete, mint/freeze authority, transfer fee, rugged, honeypot-type RugCheck flags, RugCheck down → no buy, stale data) and the 24h COOLDOWN after a stop-out / losing close. Max 1 buy/run.</div>')
     jrc = {}
     for d in (judge_rec or {}).get("decisions", []):
         k = (d.get("reason") or "").split(":")[0].split(" (")[0]
@@ -356,8 +355,8 @@ if _np:
                + (f' · BUY {esc(_np["bought"])}' if _np.get("bought") else (f' · {esc(_np["buy_note"])}' if _np.get("buy_note") else "")) + '</div>'
                '<div class="sub">score = 7×weight (famous people/crypto w7–10, classic memes w5–8, trending X topics = TAG ONLY (0 pts, USER ORDER 24.10.), generic animals/AI/events w4–7; description ×0.7) '
                '+ socials (X link = tag only 0 pts, website +6, TG +3; none −20) − copycat −30 − impersonation −25/−15 − spam/bot −10 · pass ≥ 70 · STRONG ≥ 85 · '
-               'safety: RugCheck gates + dev not sold + not serial launcher (≤ 2 other coins/24h) + ≥ 25 unique buyers + buys > sells + curve 5–60% + first-2-block snipers ≤ 10% · '
-               'USER ORDER 24.10.: pool liquidity ≥ $40K (curve liquidity is derived and stays below it → effectively paused), 1h volume ≥ $50K, not mid-rocket, sells < 2× buys, 2 losing closes = 60 min buy pause, X never a trigger · ticket 1.5% × bank × dial · max 2 new pairs (10 overall) · all tiers: ⅓ @ +30%, ⅓ @ +60%, ½ of rest @ 2x; after any TP fixed stop entry −20%, after TP3 trail −50% from peak · NORMAL: 30-min time stop only if not in profit (12 h cap) · STRONG: 3 h time stop only if not in profit (12 h cap) · all: −30% hard stop before TP1, dev-sell / volume-collapse / liquidity-pull / no-data / RugCheck-danger exits</div>'
+               'safety (13:57): only hard checks (curve complete/banned, security verdict, transfer fee, mint/freeze authority, rugged, honeypot flags, data n/a → no buy); dev-sold / snipers / buyers ≥ 25 / buys > sells / curve 5–60% / serial launcher / narrative ≥ 70 are OFF · '
+               'USER ORDER 24.10.: pool liquidity ≥ $40K (curve liquidity is derived and stays below it → effectively paused), 1h volume ≥ $50K, not mid-rocket, sells < 2× buys, 2 losses in a row = 10 min buy pause (shared with main), X never a trigger · same pipeline and ONE pool of 10 positions with main · ticket = fixed 10 EUR · all tiers: ⅓ @ +30%, ⅓ @ +60%, ½ of rest @ 2x; after any TP fixed stop entry −20%, after TP3 trail −50% from peak · NORMAL: 30-min time stop only if not in profit (12 h cap) · STRONG: 3 h time stop only if not in profit (12 h cap) · all: −30% hard stop before TP1, dev-sell / volume-collapse / liquidity-pull / no-data / RugCheck-danger exits</div>'
                + (f'<div class="lbl mt">NEW-PAIR POSITIONS</div><div class="tscroll"><table class="rt"><tr><th>TOKEN</th><th>TIER</th><th>COST</th><th>P&amp;L</th><th>NARRATIVE / EXITS</th></tr>{_np_pos}</table></div>' if _np_pos else "")
                + f'<details open class="mt"><summary>candidates (narrative ≥ {_np.get("threshold")}) · {len(_np.get("candidates") or [])}</summary>'
                + (f'<div class="tscroll"><table class="rt"><tr><th>TOKEN</th><th>AGE</th><th>SCORE</th><th>MATCHED</th><th>VERDICT</th></tr>{_np_rows(_np.get("candidates") or [])}</table></div>' if _np.get("candidates") else '<div class="empty">No fresh launch with a strong enough narrative right now.</div>')
@@ -1050,9 +1049,9 @@ try:
     _rl = " · ".join(f'{n} {_er.RULE_LABEL[n]}' + (f' <b>({_byr.get(n, 0)})</b>' if n <= 4 else '') for n in range(1, 7))
     _fd = "".join(f'<div class="row"><span class="sm">{esc((d.get("t") or "")[11:16])}</span> <b>{"Dropped" if d.get("kind") == "drop" else "Passed"}</b> {esc(d.get("name") or "?")} '
                   f'<span class="sm">{esc(("rule %s " % d["rule"]) + (_er.RULE_LABEL.get(d["rule"], "")) if d.get("kind") == "drop" else "mint passed rules 1/2/4 · " + (d.get("sleeve") or ""))}</span></div>' for d in _es["feed"]) or '<div class="empty">No entry-rule events yet.</div>'
-    _ps = (f'<b>BUY PAUSE</b> until {esc(_pz[0][11:16])} (2 losing closes in a row)' if _pz else f'no pause · loss streak {_es["streak"]}/2')
+    _ps = (f'<b>BUY PAUSE</b> until {esc(_pz[0][11:16])} (2 losses in a row, shared main + new pairs)' if _pz else f'no pause · loss streak {_es["streak"]}/2')
     frag["entry"] = (f'<div class="lbl">ENTRY RULES · USER ORDER 24.10. · {_es["evaluated"]} analysed (24 h, passed scan filters), {_es["dropped"]} dropped</div>'
-                     f'<div class="sm">{_rl}</div><div class="sm">Rule 5: {_ps} · X posts are research/tag only (rule 6) · limits: max 10 positions (8 main / 2 new pairs)</div>{_fd}')
+                     f'<div class="sm">{_rl}</div><div class="sm">Rule 5: {_ps} · X posts are research/tag only (rule 6) · limits: ONE pool, max 10 positions (main + new pairs together) · merged pipeline · OFF since 13:57: all old entry filters except hard safety + cooldown (see KNOWLEDGE)</div>{_fd}')
 except Exception as _e: frag["entry"] = f'<div class="empty">Entry rules: summary unavailable ({esc(type(_e).__name__)})</div>'
 frag["newpairs"] = f'<div class="lbl">NEW PAIRS · fresh pump.fun launches (paper)</div>{np_html}'
 frag["schedule"] = f"""<div class="lbl">SCHEDULE</div>

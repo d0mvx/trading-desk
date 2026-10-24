@@ -42,7 +42,8 @@ class Rule3MidRocket(unittest.TestCase):
     def test_six_green_and_20pct_blocked(self): self.assertTrue(self.verdict(6, 0.035).startswith("order rule 3"))
     def test_five_green_not_blocked(self): self.assertIsNone(self.verdict(5, 0.05))
     def test_six_green_small_run_not_blocked(self): self.assertIsNone(self.verdict(6, 0.01))
-    def test_rule9_still_active(self):
+    def test_rule9_still_active(self):   # legacy mode only (13:57: rule 9 is off by default)
+        from _iso import legacy_filters; legacy_filters(self)
         now = 100_000.0; m1 = [(now - 1000, 1.0, 1.0, 1.0, 1.0, 9000.0), (now - 700, 1.0, 1.0, 0.95, 0.99, 9000.0), (now - 60, 0.99, 2.2, 0.99, 2.2, 9000.0)]
         self.assertTrue(rugpattern.chase_verdict(rugpattern.chase_metrics(m1, now)).startswith("rule 9"))
     def test_cooldown_prefix(self):
@@ -65,12 +66,13 @@ class Rule4SellsVsBuys(unittest.TestCase):
 
 class Rule5LossStreak(unittest.TestCase):
     def setUp(self): self.m, self.tmp = iso_meme(); import entry_rules; self.er = entry_rules; self.t0 = dt.datetime.now(dt.timezone.utc)
-    def test_two_losses_pause_60_min_then_resume(self):
+    def test_two_losses_pause_10_min_then_resume(self):
         er = self.er; er.record_close(-0.5, "A", self.t0); self.assertIsNone(er.paused(self.t0))
         s = er.record_close(-0.2, "B", self.t0 + dt.timedelta(minutes=1)); self.assertEqual(s["streak"], 2)
         self.assertIsNotNone(er.paused(self.t0 + dt.timedelta(minutes=2)))
-        self.assertIsNotNone(er.paused(self.t0 + dt.timedelta(minutes=60)))
-        self.assertIsNone(er.paused(self.t0 + dt.timedelta(minutes=62)))
+        self.assertEqual(er.PAUSE_MIN, 10)
+        self.assertIsNotNone(er.paused(self.t0 + dt.timedelta(minutes=10)))   # lock starts at the 2nd loss (t0+1): runs until t0+11
+        self.assertIsNone(er.paused(self.t0 + dt.timedelta(minutes=12)))
         self.assertEqual(er._load()["streak"], 0)
     def test_win_resets_streak(self):
         er = self.er; er.record_close(-1, "A", self.t0); er.record_close(0.3, "W", self.t0); s = er.record_close(-1, "B", self.t0)
@@ -138,15 +140,19 @@ class DashFeed(unittest.TestCase):
 class Limits(unittest.TestCase):
     def setUp(self):
         self.m, self.tmp = iso_meme(); json.dump({"start_capital": 104.64, "start_eur": 93.3, "eurusd": 1.1215, "epoch": 3}, open(f"{self.tmp}/bank.json", "w"))
-    def test_limits_8_2_10(self):
-        import newpairs; self.assertEqual((self.m.MAX_OPEN, self.m.TOTAL_MAX_OPEN, newpairs.NP_MAX_OPEN, newpairs.TOTAL_MAX_OPEN), (8, 10, 2, 10))
-    def test_book_add_total_10(self):
+    def test_limits_one_shared_pool_of_10(self):   # 13:57: main + new pairs = one pool, no 8/2 split
+        import newpairs; self.assertEqual((self.m.MAX_OPEN, self.m.TOTAL_MAX_OPEN, newpairs.NP_MAX_OPEN, newpairs.TOTAL_MAX_OPEN), (10, 10, 10, 10))
+    def test_book_add_total_10_shared(self):
         m = self.m
-        for i in range(8): self.assertIsNone(m.book_add(pos(f"M{i}", cost=1.0), m.MAX_OPEN, m.TICKET_PCT))
-        self.assertIn("max 8", m.book_add(pos("M9", cost=1.0), m.MAX_OPEN, m.TICKET_PCT))
-        for i in range(2): self.assertIsNone(m.book_add(pos(f"N{i}", sleeve="newpairs", cost=1.0, venue="bonding_curve"), 2, m.TICKET_PCT, m.TOTAL_MAX_OPEN))
-        self.assertIn("max 2", m.book_add(pos("N9", sleeve="newpairs", cost=1.0, venue="bonding_curve"), 2, m.TICKET_PCT, m.TOTAL_MAX_OPEN))
+        for i in range(6): self.assertIsNone(m.book_add(pos(f"M{i}", cost=1.0), m.MAX_OPEN, m.TICKET_PCT))
+        for i in range(4): self.assertIsNone(m.book_add(pos(f"N{i}", sleeve="newpairs", cost=1.0, venue="bonding_curve"), 10, m.TICKET_PCT, m.TOTAL_MAX_OPEN))   # NP uses the same pool
+        self.assertIn("overall max 10", m.book_add(pos("M9", cost=1.0), m.MAX_OPEN, m.TICKET_PCT))
+        self.assertIn("overall max 10", m.book_add(pos("N9", sleeve="newpairs", cost=1.0, venue="bonding_curve"), 10, m.TICKET_PCT, m.TOTAL_MAX_OPEN))
         self.assertEqual(len(m.load_pos()["open"]), 10)
+    def test_main_can_use_all_10_slots(self):
+        m = self.m
+        for i in range(10): self.assertIsNone(m.book_add(pos(f"M{i}", cost=1.0), m.MAX_OPEN, m.TICKET_PCT))
+        self.assertIn("max 10", m.book_add(pos("X", cost=1.0), m.MAX_OPEN, m.TICKET_PCT))
     def test_sizing_cash_short(self):
         m = self.m
         self.assertEqual(m.size_ticket(500_000, 500.0), m.FIXED_TICKET_USD)       # cash plenty: fixed 10 EUR
@@ -157,7 +163,7 @@ class Limits(unittest.TestCase):
         m = self.m; self.assertEqual(int(104.64 // m.FIXED_TICKET_USD), 9)   # epoch-3 bank 104.64 USD / 11.215 USD ticket
         p = m.load_pos(); st = m.meme_state(p); self.assertAlmostEqual(st["cash"], 104.64, 2)
         for i in range(8): self.assertIsNone(m.book_add(pos(f"B{i}", cost=m.FIXED_TICKET_USD), m.MAX_OPEN, m.TICKET_PCT))
-        self.assertIsNone(m.book_add(pos("B8", sleeve="newpairs", cost=m.FIXED_TICKET_USD, venue="bonding_curve"), 2, m.TICKET_PCT, m.TOTAL_MAX_OPEN))
+        self.assertIsNone(m.book_add(pos("B8", sleeve="newpairs", cost=m.FIXED_TICKET_USD, venue="bonding_curve"), 10, m.TICKET_PCT, m.TOTAL_MAX_OPEN))
         cash = m.meme_state()["cash"]; self.assertGreater(cash, 0)
         self.assertEqual(m.size_ticket(900_000, cash), round(cash, 2))                # 10th ticket = the cash left, scaled down, never negative
 

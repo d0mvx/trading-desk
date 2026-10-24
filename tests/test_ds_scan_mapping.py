@@ -18,6 +18,8 @@ def ev(p):
     return scan.evaluate(p, NOW)
 
 class Mapping(unittest.TestCase):
+    def setUp(self):
+        from _iso import legacy_filters; legacy_filters(self)   # 13:57: scan filters are off by default -> legacy behaviour under test
     def test_fixture_has_passers_and_failers(self):
         res = [not ev(copy.deepcopy(x["gt"]))[0]["fail_keys"] for x in FX["pairs"]]
         self.assertGreaterEqual(sum(res), 5); self.assertGreaterEqual(len(res) - sum(res), 5)
@@ -72,9 +74,11 @@ class Mapping(unittest.TestCase):
     def test_thresholds_unchanged(self):
         self.assertEqual(scan.RULES["bonding_curve"], {"age_min_h": 0.25, "age_max_h": 72, "mcap_min": 15_000, "mcap_max": 90_000, "vol24_min": 20_000, "liq_min": 5_000, "max_vol24_to_liq": 100})
         self.assertEqual(scan.RULES["pumpswap"], {"age_min_h": 0.25, "age_max_h": 72, "mcap_min": 40_000, "mcap_max": 8_000_000, "vol24_min": 40_000, "liq_min": 12_000, "max_vol24_to_liq": 40})
-        self.assertEqual((scan.RULES["min_buys_h1"], scan.RULES["min_buys_m15"], scan.RULES["max_out"]), (10, 2, 25))
+        self.assertEqual((scan.RULES["min_buys_h1"], scan.RULES["min_buys_m15"], scan.RULES["max_out"]), (10, 2, 60))
 
 class Collect(unittest.TestCase):
+    def setUp(self):
+        from _iso import legacy_filters; legacy_filters(self)   # 13:57: scan filters are off by default -> legacy behaviour under test
     def test_ds_collect_one_gt_call_only_for_passers(self):
         pairs = [x["ds"] for x in FX["pairs"]]; gtp = {x["gt"]["attributes"]["address"]: x["gt"] for x in FX["pairs"]}
         def fake_get(url, params=None):

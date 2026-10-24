@@ -43,11 +43,18 @@ class Rule7(unittest.TestCase):
         d = {"1h": [C(0, 3e-6, 1, 3e-6, 1)], "1m": [C(60000, 1e-4, 1.1e-4, 9e-5, 1e-4)]}
         with self.assertRaises(rp.NoData): rp.rule7("Z", fetch=fetcher(d))
     def test_missing_data_policy(self):
+        from _iso import legacy_filters; legacy_filters(self)   # 13:57: rule 7 is off by default -> legacy policy
         def down(m, i, l): raise rp.NoData("HTTP 503")
         f, notes = rp.check("Q", newpairs=True, fetch=down, save=False)
         self.assertTrue(any(x.startswith("rule 7 · no first-candle data") for x in f))      # brand-new pairs: skip
         f, notes = rp.check("Q", newpairs=False, fetch=down, save=False)
         self.assertEqual(f, []); self.assertTrue(any("rule 7 n/a" in n for n in notes))      # main: allow + log
+    def test_missing_data_policy_rules_only(self):   # 13:57: rules 7/8 off; no candles = data error -> new pairs skip, main allowed
+        def down(m, i, l): raise rp.NoData("HTTP 503")
+        f, notes = rp.check("Q", newpairs=True, fetch=down, save=False)
+        self.assertTrue(any(x.startswith("data n/a") for x in f))
+        f, notes = rp.check("Q", newpairs=False, fetch=down, save=False)
+        self.assertEqual(f, []); self.assertTrue(any("rule 9/10 n/a" in n for n in notes))
     def test_call_budget_is_not_an_allow(self):
         old = rp._calls[0]; rp._calls[0] = rp.MAX_CALLS_PER_RUN
         try:
@@ -79,6 +86,8 @@ class Rule8(unittest.TestCase):
         self.assertIsNone(v); self.assertIsNone(f)
 
 class Integration(unittest.TestCase):
+    def setUp(self):
+        from _iso import legacy_filters; legacy_filters(self)
     def test_meme_gate_key_and_judge_hook(self):
         sys.path.insert(0, os.path.dirname(__file__)); from _iso import iso_meme
         m, _ = iso_meme()

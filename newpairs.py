@@ -34,7 +34,7 @@ DEV_24H_MAX = 2; DEV_7D_MAX = 9; DEV_TTL = 1800
 TRADE_PAGES = 3; DEEP_MAX = 6; RUN_BUDGET_S = 45
 INIT_REAL_TOKENS = 793_100_000 * 10**6; TOTAL_SUPPLY_UI = 1_000_000_000
 # ---- size / exits ----
-TICKET_PCT = 0.015; NP_MAX_OPEN = 2; TOTAL_MAX_OPEN = 10   # 2026-10-21 user order: more trades; USER ORDER 2026-10-24 13:38: total 8 -> 10, NP 3 -> 2 (main 8)
+TICKET_PCT = 0.015; NP_MAX_OPEN = 10; TOTAL_MAX_OPEN = 10   # USER ORDER 2026-10-24 13:57: ONE shared pool of max 10 (main + new pairs), no NP split
 EXIT_TIERS = {   # gains relative to entry fill; tp fractions are of the INITIAL qty
  # USER ORDER 2026-10-24 01:24 (Dominic): both tiers use the main regime (meme.EXIT_REGIME): TP1 +30% 1/3, TP2 +60% 1/3, last 1/3
  # runs (TP3 2x: half of the rest, then trail -50% from peak - 01:48 order); after any TP a FIXED stop at entry -20%; no other trailing (the old trail/trail_tight/trail_after_time_stop and the STRONG
@@ -279,19 +279,22 @@ def safety(c, fresh, cs, dev, ts, rc_fn, rc_gates):
     if cs and cs.get("complete"): f.append("curve complete (on chain)")
     prog = cs["progress"] if cs else None
     info = {"progress": round(prog, 1) if prog is not None else None, **ts}
+    legacy = not entry_rules.ENTRY_RULES_ONLY   # USER ORDER 2026-10-24 13:57: the soft heuristics below are OFF; data-error / unbuyable checks + the six rules stay
     if prog is None: f.append("curve state n/a (RPC)")
-    elif not (PROGRESS[0] <= prog <= PROGRESS[1]): f.append(f"curve progress {prog:.0f}% outside {PROGRESS[0]:.0f}..{PROGRESS[1]:.0f}%")
-    if ts["buyers"] < MIN_BUYERS: f.append(f"unique buyers {ts['buyers']} < {MIN_BUYERS}")
-    if ts["buys"] <= ts["sells"]: f.append(f"buys {ts['buys']} <= sells {ts['sells']}")
+    elif legacy and not (PROGRESS[0] <= prog <= PROGRESS[1]): f.append(f"curve progress {prog:.0f}% outside {PROGRESS[0]:.0f}..{PROGRESS[1]:.0f}%")
+    if legacy and ts["buyers"] < MIN_BUYERS: f.append(f"unique buyers {ts['buyers']} < {MIN_BUYERS}")
+    if legacy and ts["buys"] <= ts["sells"]: f.append(f"buys {ts['buys']} <= sells {ts['sells']}")
     t_ = entry_rules.bs_gate({"m15": {"buys": ts["buys"], "sells": ts["sells"]}})   # USER ORDER 2026-10-24 13:34 order rule 4 (hard 2:1 floor; the line above is stricter)
     if t_: f.append(t_)
     sol_ = sol_usd_of(fresh) if cs and cs.get("real_sol") is not None else None   # order rule 1: pool liquidity USD (curve: real SOL x SOL price, derived)
     t_ = entry_rules.liq_gate("bonding_curve", cs["real_sol"] * sol_ if sol_ else None)
     if t_: f.append(t_)
-    if ts["dev_sold"]: f.append("dev has sold")
-    if not ts["start_known"]: f.append("first-block snipers unknown (trade history not reached)")
+    if legacy and ts["dev_sold"]: f.append("dev has sold")
+    if not legacy: pass
+    elif not ts["start_known"]: f.append("first-block snipers unknown (trade history not reached)")
     elif ts.get("sniper_pct") is not None and ts["sniper_pct"] > SNIPER_MAX_PCT: f.append(f"first-{SNIPER_SLOTS}-block snipers/bundle {ts['sniper_pct']:.1f}% > {SNIPER_MAX_PCT:.0f}%")
-    if dev is None: f.append("dev history unavailable")
+    if not legacy: pass
+    elif dev is None: f.append("dev history unavailable")
     else:
         info["dev"] = {k: dev[k] for k in ("n", "n24", "n7d")}
         o24 = dev["n24"] - 1; o7 = dev["n7d"] - 1
@@ -302,7 +305,7 @@ def safety(c, fresh, cs, dev, ts, rc_fn, rc_gates):
         import rugpattern
         rp, notes = rugpattern.check(c["mint"], newpairs=True)
     except Exception as ex:
-        rp, notes = [f"rule 7 · no first-candle data (check error {type(ex).__name__})"], []
+        rp, notes = [f"data n/a: candle check error {type(ex).__name__} -> no buy"], []
     if notes: info["rugpattern_notes"] = notes
     if rp: return f + rp, info
     try:
@@ -370,9 +373,9 @@ def run(dry=False):
         rec = {"mint": e["mint"], "name": e["name"][:40], "symbol": e["symbol"][:16], "age_min": round(age, 1), "score": sc, "matched": [x["term"] + "/" + x["cat"] for x in mt], "why": rs}
         if e.get("last_score") != sc and not dry:
             e["last_score"] = sc; dec_log({"type": "narrative", "decision": "PASS" if sc >= THRESHOLD else "REJECT", **rec})
-        if sc >= THRESHOLD: cands.append((sc, age, e, rec))
+        if sc >= THRESHOLD or entry_rules.ENTRY_RULES_ONLY: cands.append((sc, age, e, rec))   # 13:57: narrative score is no entry filter any more (tag + exit tier only)
         elif sc >= 45: near.append(rec)
-    cands.sort(key=lambda x: (-x[0], x[1]))
+    cands.sort(key=(lambda x: (x[1] < AGE_MIN, -x[0], x[1])) if entry_rules.ENTRY_RULES_ONLY else (lambda x: (-x[0], x[1])))
     # deep checks (pump.fun coin + trades + dev history + RugCheck) for narrative passers; prefetch trades for 0.5-2 min coins
     p = meme.load_pos(); held = {o.get("token") for o in p["open"]}; cool = scan.cooldown_active()
     results, passers = [], []; sh_single, rc_new = [], [0]
@@ -381,10 +384,19 @@ def run(dry=False):
         if time.time() - T0 > RUN_BUDGET_S: rec.update(decision="SKIP", reason="run time budget"); results.append(rec); continue
         if e["mint"] in held: rec.update(decision="HELD", reason="already held"); results.append(rec); continue
         if e["mint"] in cool or e.get("bonding_curve") in cool: rec.update(decision="REJECT", reason="cooldown: " + ((cool.get(e["mint"]) or cool.get(e.get("bonding_curve")) or {}).get("reason") or "24h")[:90]); results.append(rec); continue
+        fresh0 = None
+        if entry_rules.ENTRY_RULES_ONLY and age >= AGE_MIN:   # order rule 1 first (cheap: 1 coin call, curve state already fetched): skips the trade / dev-history calls for the certain misses
+            try: fresh0 = get(f"{PF}/coins-v2/{e['mint']}")
+            except Exception as ex: rec.update(decision="REJECT", reason=f"coin data unavailable ({type(ex).__name__})"); results.append(rec); continue
+            cs0 = curves.get(e.get("bonding_curve")); sol0 = sol_usd_of(fresh0) if cs0 and cs0.get("real_sol") is not None else None
+            t1_ = entry_rules.liq_gate("bonding_curve", cs0["real_sol"] * sol0 if sol0 else None)
+            if t1_:
+                if not dry: entry_rules.log_fails([t1_], e.get("name"), e["mint"], "newpairs", "bonding_curve"); dec_log({"type": "safety", **rec, "decision": "REJECT", "reason": t1_})
+                rec.update(decision="REJECT", reason=t1_); results.append(rec); continue
         tr = update_trades(e["mint"], trc, TRADE_PAGES, errs); ts = trade_stats(tr, e["creator"])
         if age < AGE_MIN:
             rec.update(decision="WAIT", reason=f"too young ({age:.1f} < {AGE_MIN:.0f} min), trades prefetched", traction=ts); results.append(rec); continue
-        try: fresh = get(f"{PF}/coins-v2/{e['mint']}")
+        try: fresh = fresh0 or get(f"{PF}/coins-v2/{e['mint']}")
         except Exception as ex: rec.update(decision="REJECT", reason=f"coin data unavailable ({type(ex).__name__})"); results.append(rec); continue
         dev = dev_history(e["creator"], devc, errs)
         fails, info = safety(e, fresh, curves.get(e.get("bonding_curve")), dev, ts, meme.rugcheck_report, meme.rugcheck_gates)
@@ -463,9 +475,10 @@ def enter(pick, dry, meme):
     if meme.daily_halt_active(): return None, "daily drawdown halt active"
     pz = meme._er_pause()   # USER ORDER 2026-10-24 13:34 rule 5: loss streak -> no new buys (main + new pairs) for 60 min
     if pz: return None, pz[1]
-    if not dial: return None, "no dial"
-    if age > meme.DIAL_MAX_AGE_H: return None, f"dial {age:.1f}h old"
-    if dial["dial"]["meme"] < 0.50: return None, f"meme dial {dial['dial']['meme']} < 0.50"
+    if (not entry_rules.ENTRY_RULES_ONLY) or entry_rules.KEEP_DIAL_GATE:   # 2026-10-24 13:57: dial stand-down is no entry rule
+        if not dial: return None, "no dial"
+        if age > meme.DIAL_MAX_AGE_H: return None, f"dial {age:.1f}h old"
+        if dial["dial"]["meme"] < 0.50: return None, f"meme dial {dial['dial']['meme']} < 0.50"
     cs = (chain_curves([e["bonding_curve"]], []) or {}).get(e["bonding_curve"]) or cs   # fresh fill price from chain
     sol = sol_usd_of(fresh)
     if not cs or not cs.get("price_sol") or not sol: return None, "no price"
@@ -495,7 +508,7 @@ def enter(pick, dry, meme):
             blk = meme.book_add(o, NP_MAX_OPEN, TICKET_PCT, TOTAL_MAX_OPEN)
             if blk: return None, blk
     except TimeoutError: return None, "positions lock busy -> retry next minute"
-    log(f"[SIZE] NEW PAIR ticket ${ticket:.2f} = min(1.5% x meme bank ${ms['equity']:.2f} x dial {dial['dial']['meme']} = ${t1:.2f}, 2% curve liq ${t2:.2f}); fee {fr:.2%} + ${meme.NETWORK_FEE_USD + meme.PRIORITY_FEE_USD:.3f} network/priority")
+    log(f"[SIZE] NEW PAIR ticket ${ticket:.2f} = min(1.5% x meme bank ${ms['equity']:.2f} x dial {(dial or {}).get('dial', {}).get('meme', 'n/a')} = ${t1:.2f}, 2% curve liq ${t2:.2f}); fee {fr:.2%} + ${meme.NETWORK_FEE_USD + meme.PRIORITY_FEE_USD:.3f} network/priority")
     log(f"[FILLS] BUY [NEW PAIR · {tier['tier'].upper()}] {ltag(o['token'])}{o['name']} (SIMULATED pump.fun bonding_curve) ${ticket:.2f} @ {b['entry_price']:.10g} (slip {b['entry_slippage']:.2%}; rent deposit ${b['rent_usd']:.3f} refundable) | narrative {sc}: {', '.join(rec.get('matched') or [])} | buyers {rec['traction'].get('buyers')} curve {rec['traction'].get('progress')}%")
     dec_log({"type": "buy", "mint": e["mint"], "symbol": e["symbol"], "score": sc, "tier": tier["tier"], "ticket": ticket, "fill": b["entry_price"]})
     return o["name"], None

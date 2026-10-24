@@ -11,6 +11,7 @@ Usage: scan.py  -> JSON to stdout, saved to ~/.desk/scan/YYYY-MM-DD_HHMM.json"""
 import os, sys, json, glob, math, time, datetime as dt, requests
 from zoneinfo import ZoneInfo
 sys.path.insert(0, os.path.expanduser("~/.desk")); import gt
+import entry_rules
 from leads import lead_id   # 2026-10-20 research upgrade: lead IDs
 DESK = os.path.expanduser("~/.desk"); BER = ZoneInfo("Europe/Berlin"); UTC = dt.timezone.utc
 PUMP_DEXES = {"pump-fun": "bonding_curve", "pumpswap": "pumpswap"}
@@ -20,7 +21,8 @@ RULES = {
     "bonding_curve": {"age_min_h": 0.25, "age_max_h": 72, "mcap_min": 15_000, "mcap_max": 90_000, "vol24_min": 20_000, "liq_min": 5_000, "max_vol24_to_liq": 100},
     "pumpswap":      {"age_min_h": 0.25, "age_max_h": 72, "mcap_min": 40_000, "mcap_max": 8_000_000, "vol24_min": 40_000, "liq_min": 12_000, "max_vol24_to_liq": 40},
     # max_out 2026-10-20 14:5x: 10 -> 25 (bigger universe; Judge is cheap, RugCheck only on gate-passers, 45 s budget)
-    "max_out": 25, "drop_if_sells_gt_buys_in": ["m15", "h1"],
+    "max_out": 60,   # USER ORDER 2026-10-24 13:57: 25 -> 60 (the six rules, not the scan, choose)
+    "max_out_legacy": 25, "drop_if_sells_gt_buys_in": ["m15", "h1"],
     "quote": "SOL only (custom-pair coins dropped)", "min_buys_h1": 10, "min_buys_m15": 2,
     "curve_complete_sol": 80,          # bonding curve with >= 80 real SOL (~94% of 85) = complete/graduating -> GT data goes stale
     "stale": "reject if txns (m15+h1) and mcap unchanged for 3 consecutive scans (current = previous 2)",
@@ -135,6 +137,9 @@ def evaluate(p, now):
         t = tx.get(w) or {}
         if (t.get("sells") or 0) > (t.get("buys") or 0):
             fails.append((f"sells > buys {w}", f"sells > buys {w} ({t.get('sells')} vs {t.get('buys')})"))
+    if entry_rules.ENTRY_RULES_ONLY:   # USER ORDER 2026-10-24 13:57: only hard data / unbuyable checks stay at scan level; the six rules decide in meme.py / newpairs.py
+        fails = [(k, t) for k, t in fails if k in ("curve complete", "mcap missing", "quote not SOL")]
+        if not num(a.get("base_token_price_usd")): fails.append(("price n/a", "price n/a (no data -> no buy)"))
     why = [t for _, t in fails]
     b1 = (tx.get("h1") or {}).get("buyers") or 0; b6 = (tx.get("h6") or {}).get("buyers") or 0
     base = max(1.0, b6 / min(6.0, max(age_h, 1.0)))            # avg hourly unique buyers over last <=6h
@@ -379,7 +384,7 @@ def scan(dry=False, source=None):
     for c in cands:   # one pool per mint
         if c["base_token"] in seen_m: continue
         seen_m.add(c["base_token"]); dd.append(c)
-    cands = dd[:RULES["max_out"]]
+    cands = dd[:RULES["max_out"] if entry_rules.ENTRY_RULES_ONLY else RULES["max_out_legacy"]]
     out = {"scanned_at": now.astimezone(BER).isoformat(timespec="seconds"), "network": "solana", "source": source,
            "pump_fun_frontend_api": "frontend-api-v3 feeds used as extra candidate source (sources.py)", "gt_calls": calls, "pools_seen": len(pools),
            "rejected_by_first_rule": rej, "rejected_by_reason": by_reason, "rejected_total": len(rejects),

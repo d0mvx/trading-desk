@@ -14,6 +14,8 @@ def series(now, closes, launch=None):
 def m(now, closes): return [(x["timestamp"] / 1000, float(x["open"]), float(x["high"]), float(x["low"]), float(x["close"]), 5000.0) for x in series(now, closes)]
 
 class Rule9(unittest.TestCase):
+    def setUp(self):
+        from _iso import legacy_filters; legacy_filters(self)   # 13:57: rules 9/10 are off by default -> test the legacy behaviour
     def test_thresholds_shipped(self):
         self.assertEqual((rp.R9_MAX_RUN15, rp.R9_YOUNG_N60, rp.R9_YOUNG_MAX_RUN30, rp.R10_MAX_RED1M, rp.R10_WIN_S, rp.NP_R9_MAX_RUN15, rp.NP_R10_MAX_RED1M),
                          (1.0, 25, 1.0, 0.20, 600, 1.0, 0.20))

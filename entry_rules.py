@@ -21,7 +21,14 @@ MIN_POOL_LIQ_USD = {"pumpswap": 40_000.0, "bonding_curve": 40_000.0}
 MIN_VOL_H1_USD = 50_000.0
 MAX_SELLS_PER_BUY = 2.0
 STREAK_LOSSES = 2
-PAUSE_MIN = 60
+PAUSE_MIN = 10          # USER ORDER 2026-10-24 13:57 (correction): 2 losing closes in a row -> 10 min buy pause (was 60); configurable
+# USER ORDER 2026-10-24 13:57: ONLY the six rules decide an entry (main + new pairs = one pipeline, one position pool, one pause/streak).
+# True = all older entry filters are OFF (scan age/liq/mcap/vol/buys/wash/sells rules, judge thresholds, rules 7-10, RugCheck concentration/LP/insider
+# gates, dip/watchlist entry, Jev pick, narrative threshold + new-pairs safety heuristics, dial stand-down). Hard safety stays (data errors, unbuyable
+# token, mint/freeze authority, transfer fee, rugged/honeypot flags, curve complete/banned, no price/route) plus the cooldown for blocked tokens.
+# False = legacy behaviour (all old filters). Forbidden for the learner.
+ENTRY_RULES_ONLY = True
+KEEP_DIAL_GATE = False   # macro dial stand-down (< 0.50 / missing / degraded) was an entry filter -> off while ENTRY_RULES_ONLY
 X_SCORE_ENABLED = False
 STREAK_FILE = f"{DESK}/loss_streak.json"; STREAK_LOCK = f"{DESK}/.loss_streak.lock"
 DROP_LOG = f"{DESK}/logs/entry_rules_drops.jsonl"

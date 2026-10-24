@@ -27,14 +27,14 @@ class Caps(unittest.TestCase):
         self.assertIn("cap", m.book_add(pos("EEE", sleeve="newpairs", cost=m.FIXED_TICKET_USD + 1.0), 2, 0.015))
     def test_sequential_caps(self):
         m = self.m
-        r = [m.book_add(pos(f"M{i}"), m.MAX_OPEN, m.TICKET_PCT) for i in range(10)]
-        self.assertEqual(sum(x is None for x in r), 8)
-        r = [m.book_add(pos(f"N{i}", sleeve="newpairs", cost=1.0), 2, 0.015) for i in range(3)]
-        self.assertEqual(sum(x is None for x in r), 2)       # new pairs max 2; total 10 reached
+        r = [m.book_add(pos(f"M{i}"), m.MAX_OPEN, m.TICKET_PCT) for i in range(6)]
+        self.assertEqual(sum(x is None for x in r), 6)
+        r = [m.book_add(pos(f"N{i}", sleeve="newpairs", cost=1.0), 10, 0.015) for i in range(6)]
+        self.assertEqual(sum(x is None for x in r), 4)       # 13:57: one shared pool of 10 (no NP split): 6 main + 4 NP = 10 reached
         self.assertEqual(len(json.load(open(m.POS))["open"]), 10)
     def test_constants(self):
         import newpairs
-        self.assertEqual((self.m.MAX_OPEN, self.m.TOTAL_MAX_OPEN, newpairs.NP_MAX_OPEN, newpairs.TOTAL_MAX_OPEN), (8, 10, 2, 10))
+        self.assertEqual((self.m.MAX_OPEN, self.m.TOTAL_MAX_OPEN, newpairs.NP_MAX_OPEN, newpairs.TOTAL_MAX_OPEN), (10, 10, 10, 10))   # 13:57: one shared pool
     def test_only_book_add_appends_positions(self):
         """Structural: no code path appends to the real book except book_add (so no path can skip the checks)."""
         hits = []
