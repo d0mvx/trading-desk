@@ -1,66 +1,177 @@
-<pre class='review'># Weekly review — 2026-10-20 21:16 Berlin (last 7 days, since Tue 13 Oct 21:16)
+<pre class='review'># Weekly review — 2026-10-25 20:00 Berlin (last 7 days, since Sun 18 Oct 20:00)
 
 Paper only. R = P&amp;L / (ticket x hard-stop %). Shadow = virtual trades the desk did not take; control = baseline bots (top / random scan passer, no judge gates).
-- **real**: 39 trades, win 36%, avg R +0.04, P&amp;L -0.20
-- **shadow**: 20 trades, win 20%, avg R -0.86, P&amp;L -8.35
-- **control**: no closed trades in window
+- **real**: 15 trades, win 20%, avg R -0.93, P&amp;L -31.25
+- **shadow**: 885 trades, win 26%, avg R -0.28, P&amp;L -516.69
+- **control**: 1714 trades, win 17%, avg R -0.49, P&amp;L -1795.27
 
 ## Real trades by Berlin entry hour
 | Hour | n | win | avg R | P&amp;L $ |
 |---|---|---|---|---|
-| 05h | 1 | 0% | -1.18 | -0.53 |
-| 08h | 3 | 0% | -1.36 | -1.82 |
-| 15h | 5 | 40% | +0.17 | -0.18 |
-| 16h | 5 | 40% | +0.70 | +1.01 |
-| 17h | 6 | 50% | +0.38 | +1.31 |
-| 18h | 3 | 33% | -0.59 | -0.92 |
-| 19h | 8 | 38% | +0.57 | +1.93 |
-| 20h | 7 | 43% | -0.12 | -0.16 |
-| 21h | 1 | 0% | -1.85 | -0.84 |
+| 02h | 2 | 0% | -1.15 | -5.15 |
+| 03h | 1 | 0% | -0.36 | -0.81 |
+| 04h | 1 | 100% | +0.04 | +0.08 |
+| 05h | 1 | 0% | -0.55 | -1.23 |
+| 09h | 1 | 0% | -4.86 | -10.89 |
+| 10h | 1 | 0% | -0.43 | -0.97 |
+| 11h | 1 | 0% | -1.44 | -3.24 |
+| 14h | 1 | 0% | -2.00 | -4.48 |
+| 16h | 1 | 0% | -2.16 | -4.84 |
+| 18h | 1 | 100% | +3.02 | +6.77 |
+| 19h | 1 | 0% | -1.42 | -3.19 |
+| 21h | 1 | 100% | +0.91 | +2.04 |
+| 22h | 1 | 0% | -1.18 | -2.64 |
+| 23h | 1 | 0% | -1.21 | -2.71 |
 
 ## Real trades by curve phase
 | Phase | n | win | avg R | P&amp;L $ |
 |---|---|---|---|---|
-| PumpSwap (graduated) | 26 | 46% | +0.45 | +5.59 |
-| bonding curve | 13 | 15% | -0.79 | -5.79 |
+| PumpSwap (graduated) | 15 | 20% | -0.93 | -31.25 |
 
 ## Real + shadow new pairs by narrative age at entry
 | Narrative age | n | win | avg R | P&amp;L $ |
 |---|---|---|---|---|
-| n/a (static term / not logged) | 4 | 75% | +1.05 | +1.44 |
+| n/a (static term / not logged) | 51 | 22% | -0.05 | +0.06 |
 
 ## Shadow + control by category
 | Category | n | win | avg R | P&amp;L $ |
 |---|---|---|---|---|
-| main:blocked:bonding_curve | 1 | 100% | +4.12 | +1.87 |
+| control:random_scan_pass | 1208 | 19% | -0.57 | -1500.14 |
+| control:top_scan_pass | 506 | 14% | -0.31 | -295.13 |
+| main:blocked:bonding_curve | 29 | 14% | -0.47 | -47.67 |
+| main:blocked:i18 | 3 | 0% | -2.54 | -17.07 |
 | main:blocked:max_open | 1 | 0% | -1.03 | -0.47 |
-| main:gate:dip: falling knife | 1 | 0% | -0.25 | -0.11 |
-| main:gate:dip: no dip yet | 5 | 20% | -0.49 | -1.10 |
-| main:gate:dip: too deep | 4 | 25% | -1.52 | -2.80 |
-| main:gate:judge: price h1 | 4 | 0% | -2.12 | -3.91 |
-| main:gate:scan: cooldown | 3 | 0% | -2.34 | -3.18 |
-| np:gate:unique buyers | 1 | 100% | +3.95 | +1.37 |
+| main:blocked:one_per_run | 6 | 33% | -0.22 | -3.16 |
+| main:gate:dip: candle not fetched (data guard) | 5 | 0% | -1.08 | -12.03 |
+| main:gate:dip: falling knife | 54 | 30% | -0.28 | -36.51 |
+| main:gate:dip: no dip yet | 137 | 29% | -0.40 | -83.14 |
+| main:gate:dip: too deep | 79 | 42% | +0.09 | -42.74 |
+| main:gate:judge: buyers/buy h1 | 21 | 43% | +0.12 | +8.35 |
+| main:gate:judge: buys/sells m15 | 58 | 22% | -0.67 | -87.57 |
+| main:gate:judge: order rule 1 pool liquidity | 91 | 30% | +0.74 | +150.22 |
+| main:gate:judge: order rule 2 dead volume | 94 | 9% | -0.32 | -67.69 |
+| main:gate:judge: order rule 3 mid-rocket | 1 | 100% | +1.36 | +3.05 |
+| main:gate:judge: order rule 4 sells | 2 | 0% | -0.40 | -1.79 |
+| main:gate:judge: price h1 | 122 | 30% | -0.64 | -144.39 |
+| main:gate:judge: rule 10 dump candle | 7 | 71% | +1.00 | +15.66 |
+| main:gate:judge: rule 7 first candle | 20 | 40% | -0.49 | -21.90 |
+| main:gate:judge: rule 8 bot-wash pattern | 1 | 0% | -1.16 | -2.60 |
+| main:gate:judge: rule 9 chase | 2 | 50% | +1.42 | +6.39 |
+| main:gate:judge: unique buyers h1 | 1 | 0% | -1.44 | -3.23 |
+| main:gate:rugcheck: LP locked | 1 | 0% | -4.62 | -10.35 |
+| main:gate:rugcheck: creator holds | 2 | 0% | -3.06 | -13.72 |
+| main:gate:rugcheck: danger: Creator history of rugged tokens | 1 | 0% | -1.51 | -3.39 |
+| main:gate:rugcheck: insiders | 57 | 19% | -0.57 | -64.23 |
+| main:gate:rugcheck: largest non-pool holder | 1 | 0% | -0.38 | -0.16 |
+| main:gate:scan: 24h vol &lt; $40.0k | 1 | 0% | -1.28 | -2.87 |
+| main:gate:scan: cooldown | 30 | 13% | -0.95 | -41.41 |
+| main:gate:scan: mcap &lt; $40.0k | 3 | 33% | -0.20 | -1.32 |
+| main:gate:scan: mcap &gt; $8.00M | 1 | 0% | -1.15 | -2.59 |
+| main:gate:scan: stale data | 2 | 50% | +3.19 | +14.30 |
+| main:gate:scan: vol/liq wash | 1 | 0% | -1.21 | -2.70 |
+| np:gate:dev has sold | 10 | 0% | -0.85 | -22.95 |
+| np:gate:first-2-block snipers/bundle | 5 | 40% | +0.30 | +5.39 |
+| np:gate:first-block snipers unknown | 3 | 67% | +0.16 | +2.08 |
+| np:gate:rugcheck: creator holds | 1 | 0% | -1.39 | -4.68 |
+| np:gate:rugcheck: largest non-pool holder | 1 | 100% | +2.19 | +7.35 |
+| np:gate:rule 10 dump candle | 1 | 0% | -0.69 | -2.32 |
+| np:gate:rule 7 first candle | 1 | 100% | +3.62 | +12.16 |
+| np:gate:serial launcher | 1 | 100% | +2.01 | +6.78 |
+| np:gate:unique buyers | 28 | 14% | -0.07 | -3.75 |
 
 ## Gates: shadow cost (single-gate blocks) and reject outcomes
 | Gate | shadow n | shadow P&amp;L $ | rejects n | median +1h | median +6h | median +24h | FN rate (+6h &gt;= +50%) |
 |---|---|---|---|---|---|---|---|
-| unique buyers | 1 | +1.37 | 0 | — | — | — | — |
-| dip: falling knife | 1 | -0.11 | 0 | — | — | — | — |
-| dip: no dip yet | 5 | -1.10 | 0 | — | — | — | — |
-| dip: too deep | 4 | -2.80 | 0 | — | — | — | — |
-| scan: cooldown | 3 | -3.18 | 0 | — | — | — | — |
-| judge: price h1 | 4 | -3.91 | 0 | — | — | — | — |
+| judge: order rule 1 pool liquidity | 91 | +150.22 | 0 | — | — | — | — |
+| judge: rule 10 dump candle | 7 | +15.66 | 0 | — | — | — | — |
+| scan: stale data | 2 | +14.30 | 0 | — | — | — | — |
+| rule 7 first candle | 1 | +12.16 | 0 | — | — | — | — |
+| judge: buyers/buy h1 | 21 | +8.35 | 0 | — | — | — | — |
+| rugcheck: largest non-pool holder | 2 | +7.19 | 0 | — | — | — | — |
+| serial launcher | 1 | +6.78 | 0 | — | — | — | — |
+| judge: rule 9 chase | 2 | +6.39 | 0 | — | — | — | — |
+| first-2-block snipers/bundle | 5 | +5.39 | 0 | — | — | — | — |
+| judge: order rule 3 mid-rocket | 1 | +3.05 | 0 | — | — | — | — |
+| first-block snipers unknown | 3 | +2.08 | 0 | — | — | — | — |
+| block:already held | 0 | +0.00 | 122 | -8% | -70% | -96% | 16% |
+| scan:liquidity | 0 | +0.00 | 561 | -19% | -41% | -60% | 18% |
+| other:loss-streak pause until 15:18  | 0 | +0.00 | 118 | -5% | -11% | -43% | 6% |
+| PICK | 0 | +0.00 | 140 | -12% | -70% | -95% | 16% |
+| block:rugcheck unavailable | 0 | +0.00 | 29 | -2% | -29% | -98% | 21% |
+| other:loss-streak pause until 14:56  | 0 | +0.00 | 115 | -1% | -6% | -27% | 6% |
+| scan:2 | 0 | +0.00 | 241 | -98% | -100% | -100% | 5% |
+| judge:buyers/buy | 0 | +0.00 | 113 | -96% | -99% | -99% | 7% |
+| other:loss-streak pause until 16:31  | 0 | +0.00 | 113 | -4% | -18% | -48% | 7% |
+| other:loss-streak pause until 20:45  | 0 | +0.00 | 107 | -6% | -19% | -44% | 8% |
+| judge:rule | 0 | +0.00 | 222 | -97% | -98% | -98% | 5% |
+| rugcheck:largest | 0 | +0.00 | 5 | +8% | -81% | -39% | 0% |
+| judge:price | 0 | +0.00 | 360 | -25% | -93% | -97% | 9% |
+| block:daily drawdown | 0 | +0.00 | 62 | +1% | +5% | +5% | 15% |
+| judge:buys/sells | 0 | +0.00 | 515 | -66% | -98% | -98% | 6% |
+| block:not judged | 0 | +0.00 | 42 | +1% | +1% | -1% | 14% |
+| scan:sells | 0 | +0.00 | 323 | -6% | -31% | -64% | 16% |
+| scan:curve | 0 | +0.00 | 136 | +0% | +0% | +77% | 28% |
+| other:loss-streak pause until 14:37  | 0 | +0.00 | 111 | -1% | -10% | -39% | 5% |
+| scan:mcap | 0 | +0.00 | 275 | -12% | -43% | -76% | 7% |
+| rugcheck:creator | 0 | +0.00 | 4 | -97% | -97% | -97% | 25% |
+| other:loss-streak pause until 18:46  | 0 | +0.00 | 112 | -1% | -10% | -44% | 7% |
+| rugcheck:lp | 0 | +0.00 | 5 | +215% | -98% | -98% | 0% |
+| scan:buys | 0 | +0.00 | 430 | -9% | -43% | -84% | 10% |
+| other:rugcheck: danger: top 10 holde | 0 | +0.00 | 4 | -24% | -46% | -61% | 0% |
+| scan:vol/liq | 0 | +0.00 | 99 | +2% | -12% | -62% | 18% |
+| other:rugcheck: danger: single holde | 0 | +0.00 | 1 | -68% | -93% | -97% | 0% |
+| other:loss-streak pause until 17:30  | 0 | +0.00 | 109 | -4% | -18% | -50% | 4% |
+| judge:unique | 0 | +0.00 | 179 | +1% | +5% | +11% | 4% |
+| watchlist:dip | 0 | +0.00 | 5 | -17% | -98% | -98% | 0% |
+| scan:quote | 0 | +0.00 | 8 | -49% | -50% | -73% | 0% |
+| block:dial | 0 | +0.00 | 109 | -0% | -11% | -55% | 10% |
+| rugcheck:insiders | 0 | +0.00 | 76 | +1% | -25% | -51% | 17% |
+| watchlist:no | 0 | +0.00 | 76 | -1% | -58% | -95% | 18% |
+| block:max | 0 | +0.00 | 692 | -4% | -45% | -76% | 10% |
+| other:dip too deep (trend broken) —  | 0 | +0.00 | 57 | -69% | -98% | -99% | 11% |
+| scan:cooldown | 0 | +0.00 | 215 | -30% | -92% | -97% | 9% |
+| block:bonding curve | 0 | +0.00 | 375 | -1% | +0% | -17% | 30% |
+| scan:stale | 0 | +0.00 | 204 | -7% | -25% | -61% | 10% |
+| watchlist:falling | 0 | +0.00 | 30 | -7% | -87% | -95% | 17% |
+| other:loss-streak pause until 16:55  | 0 | +0.00 | 119 | -4% | -15% | -35% | 8% |
+| other:rugcheck: danger: creator hist | 0 | +0.00 | 4 | -14% | -70% | -98% | 0% |
+| other:loss-streak pause until 19:49  | 0 | +0.00 | 114 | -0% | -6% | -28% | 9% |
+| other:rugcheck: danger: low liquidit | 0 | +0.00 | 1 | -9% | -5% | -97% | 0% |
+| judge:order | 0 | +0.00 | 491 | -15% | -26% | -49% | 6% |
+| other:loss-streak pause until 00:33  | 0 | +0.00 | 23 | +0% | +5% | +19% | 9% |
+| scan:age | 0 | +0.00 | 1124 | -1% | -13% | -71% | 9% |
+| scan: mcap &lt; $40.0k | 3 | -1.32 | 0 | — | — | — | — |
+| judge: order rule 4 sells | 2 | -1.79 | 0 | — | — | — | — |
+| rule 10 dump candle | 1 | -2.32 | 0 | — | — | — | — |
+| scan: mcap &gt; $8.00M | 1 | -2.59 | 0 | — | — | — | — |
+| judge: rule 8 bot-wash pattern | 1 | -2.60 | 0 | — | — | — | — |
+| scan: vol/liq wash | 1 | -2.70 | 0 | — | — | — | — |
+| scan: 24h vol &lt; $40.0k | 1 | -2.87 | 0 | — | — | — | — |
+| judge: unique buyers h1 | 1 | -3.23 | 0 | — | — | — | — |
+| rugcheck: danger: Creator history of rugged tokens | 1 | -3.39 | 0 | — | — | — | — |
+| unique buyers | 28 | -3.75 | 0 | — | — | — | — |
+| rugcheck: LP locked | 1 | -10.35 | 0 | — | — | — | — |
+| dip: candle not fetched (data guard) | 5 | -12.03 | 0 | — | — | — | — |
+| rugcheck: creator holds | 3 | -18.40 | 0 | — | — | — | — |
+| judge: rule 7 first candle | 20 | -21.90 | 0 | — | — | — | — |
+| dev has sold | 10 | -22.95 | 0 | — | — | — | — |
+| dip: falling knife | 54 | -36.51 | 0 | — | — | — | — |
+| scan: cooldown | 30 | -41.41 | 0 | — | — | — | — |
+| dip: too deep | 79 | -42.74 | 0 | — | — | — | — |
+| rugcheck: insiders | 57 | -64.23 | 0 | — | — | — | — |
+| judge: order rule 2 dead volume | 94 | -67.69 | 0 | — | — | — | — |
+| dip: no dip yet | 137 | -83.14 | 0 | — | — | — | — |
+| judge: buys/sells m15 | 58 | -87.57 | 0 | — | — | — | — |
+| judge: price h1 | 122 | -144.39 | 0 | — | — | — | — |
 
 ## Verdicts
-- **Rule that cost the most / rule to cut:** none — no gate has &gt;= 10 shadow trades with positive P&amp;L this window (gates paid for themselves or n too small).
+- **Rule that cost the most:** `judge: order rule 1 pool liquidity` — its 91 blocked coins made +150.22 $ in the shadow book (win 30%, avg R +0.74).
+- **1 rule to cut (candidate, needs holdout confirmation before any change):** `judge: order rule 1 pool liquidity` (same numbers).
 - **1 rule to add:** none — no researched candidate has passed the walk-forward holdout yet (see CHANGELOG_research.md).
+- **Gates vs control bot:** real avg R -0.93 (n=15) vs control avg R -0.49 (n=1714) -&gt; gates do NOT beat the baseline yet.
 
 ## Ops
-- Turnover: 39 real round trips (84.12 $ bought), 20 shadow, 0 control.
-- Filter health: 73 scan runs; rejects/day 2026-10-20 9176 — ok
+- Turnover: 15 real round trips (168.15 $ bought), 885 shadow, 1714 control.
+- Filter health: 6164 scan runs; rejects/day 2026-10-20 29411, 2026-10-21 61728, 2026-10-22 138729, 2026-10-23 116298, 2026-10-24 98865, 2026-10-25 105121 — ok
 - Overrides (manual edits of risk files / STOP flag): none flagged
-
-## Monthly routine audit
-- Risk-rule enforcement tests (tests/run_all.sh): **OK**
-- Checklist: backups present for every CHANGELOG entry; crontab matches the last backup; no live-money keys; kill switch state file readable.
 </pre>
