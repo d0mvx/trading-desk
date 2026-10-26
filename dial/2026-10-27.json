@@ -1,0 +1,110 @@
+{
+  "date": "2026-10-27",
+  "generated_at": "2026-10-27T00:20:00+01:00",
+  "inputs": {
+    "liquidity": {
+      "net_liquidity_bn": 5801.4,
+      "as_of": "2026-10-21",
+      "4w_ago_bn": 5770.2,
+      "4w_ago_date": "2026-09-23",
+      "change_4w_bn": 31.2,
+      "rule": "green if 4w change > 0"
+    },
+    "volatility": {
+      "vix_last": 19.45,
+      "as_of": "2026-10-23",
+      "rule": "green if < 22"
+    },
+    "credit": {
+      "hy_oas_last": 3.38,
+      "as_of": "2026-10-23",
+      "4w_ago": 2.93,
+      "4w_ago_date": "2026-09-25",
+      "change_4w": 0.45,
+      "rule": "green if 4w change <= 0"
+    },
+    "btc": {
+      "close": 80057.33,
+      "sma200": 72946.33,
+      "bar_date": "2026-10-25",
+      "rule": "green if close > 200d avg"
+    },
+    "sol": {
+      "close": 101.25,
+      "sma50": 109.59,
+      "bar_date": "2026-10-25",
+      "rule": "green if close > 50d avg"
+    },
+    "nasdaq": {
+      "qqq_close": 712.11,
+      "sma200": 677.71,
+      "bar_date": "2026-10-26",
+      "bars": 290,
+      "feed": "IEX",
+      "rule": "green if close > 200d avg"
+    }
+  },
+  "greens": {
+    "liquidity": true,
+    "volatility": true,
+    "credit": false,
+    "btc": true,
+    "sol": false,
+    "nasdaq": true
+  },
+  "dial": {
+    "meme": 0.75,
+    "stocks": 0.75,
+    "crypto": 0.5
+  },
+  "dial_raw": {
+    "meme": 0.75,
+    "stocks": 0.75,
+    "crypto": 0.6666
+  },
+  "dial_interpretation": {
+    "meme": "three-quarters",
+    "stocks": "three-quarters",
+    "crypto": "half"
+  },
+  "crypto_targets": {
+    "method": "close(t-30d)/close(t-365d)-1; top 2 positive, equal weight; none -> cash",
+    "scores": {
+      "BTC": -0.2469,
+      "ETH": -0.3196,
+      "SOL": -0.37
+    },
+    "weights": {},
+    "cash": 1.0
+  },
+  "data_age_hours": {
+    "WALCL": 143.3,
+    "WTREGEN": 143.3,
+    "RRPONTSYD": 23.3,
+    "VIXCLS": 95.3,
+    "BAMLH0A0HYM2": 95.3,
+    "BTC/USD": 23.3,
+    "SOL/USD": 23.3,
+    "ETH/USD": 23.3,
+    "QQQ": 3.3
+  },
+  "max_normal_age_hours": {
+    "WALCL": 240,
+    "WTREGEN": 240,
+    "RRPONTSYD": 120,
+    "VIXCLS": 120,
+    "BAMLH0A0HYM2": 120,
+    "BTC/USD": 48,
+    "SOL/USD": 48,
+    "ETH/USD": 48,
+    "QQQ": 120
+  },
+  "degraded": [],
+  "sources": {
+    "WALCL": "fred",
+    "WTREGEN": "fred",
+    "RRPONTSYD": "fred",
+    "VIXCLS": "fred",
+    "BAMLH0A0HYM2": "fred"
+  }
+}
