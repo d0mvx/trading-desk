@@ -884,3 +884,163 @@ RuntimeError: SEC fetch failed: https://www.sec.gov/Archives/edgar/daily-index/2
  ]
 }
 2026-10-23 13:32:20 CEST [LISTS] done rc=0
+[INSIDERS] 2026-10-23 533 Form 4 filings, 648 purchase rows, 0 errors, 107s
+[INSIDERS] 2026-10-12 no EDGAR daily index (404/403 AccessDenied: federal holiday or not published yet) -> skipped
+2026-10-26 12:31:50 CET [LISTS] INSIDERS 5 names BPRE, RENT, RAPP, FUL, NXG
+{
+ "list": "INSIDERS",
+ "status": "ok",
+ "generated_at": "2026-10-26T12:31:50+01:00",
+ "rule": ">= 3 distinct insider GROUPS, open-market buys (code P), trade date >= 2026-09-26, total > $500,000, excl. 10b5-1",
+ "source": "SEC EDGAR Form 4 (daily form index + full submission)",
+ "filing_days_checked": 24,
+ "filing_days_missing": [],
+ "purchase_rows_in_window": 1602,
+ "qualifying_not_tradable": [
+  "HEI, HEI.A",
+  "BBASX"
+ ],
+ "dropped_after_grouping": {
+  "DSM": "2 distinct buyer group(s), $1,356,659 counted",
+  "LEO": "2 distinct buyer group(s), $2,219,470 counted",
+  "DOLE": "1 distinct buyer group(s), $8,630,131 counted",
+  "CTY": "0 distinct buyer group(s), $0 counted; excluded pre/at-listing $6,120,000 (first bar 2026-10-16)",
+  "FLSC": "SPAC / blank-check issuer (Frazier Life Sciences Acquisition Corp. II, SIC BLANK CHECKS [6770])",
+  "GOLD": "1 distinct buyer group(s), $3,983,019 counted",
+  "TRXB": "1 distinct buyer group(s), $2,499,994 counted; excluded offering-type $1,299,998",
+  "NUAI": "1 distinct buyer group(s), $1,192,350 counted",
+  "QVCG": "1 distinct buyer group(s), $20,238,392 counted",
+  "LWAY": "1 distinct buyer group(s), $2,169,394 counted",
+  "ACCV": "0 distinct buyer group(s), $0 counted; excluded offering-type $4,098,600",
+  "PORT.U": "SPAC / blank-check issuer (Southport Acquisition Corp. II, SIC BLANK CHECKS [6770])",
+  "GPUS": "2 distinct buyer group(s), $5,084,482 counted",
+  "ADRX": "0 distinct buyer group(s), $0 counted; excluded offering-type $33,345,772; excluded pre/at-listing $54,400,000 (first bar 2026-09-25)",
+  "KOD": "1 distinct buyer group(s), $156,986,394 counted",
+  "COUR": "1 distinct buyer group(s), $4,606,200 counted"
+ },
+ "grouping": "related reporting owners = 1 buyer (joint filing, shared non-issuer address, fund-family/surname root, SPAC sponsors); offering-type buys excluded (footnotes: private placement/IPO/units/PIPE/underwritten/registered direct..., unit/warrant securities, blank-check issuers, buys on/before first trading day+3d)",
+ "reason": null,
+ "names": [
+  "BPRE",
+  "RENT",
+  "RAPP",
+  "FUL",
+  "NXG"
+ ]
+}
+2026-10-26 12:32:22 CET [LISTS] DRIFT 20 names (surprise >= p90 30.9%): CBRL, SPCX, EGBN, JILL, APOG, HELE, LUXE, DOO
+{
+ "list": "DRIFT",
+ "status": "ok",
+ "generated_at": "2026-10-26T12:32:22+01:00",
+ "rule": "reported in last 40 sessions (2026-08-28..2026-10-23), surprise >= p90 (30.9%), closed up on report day",
+ "guards": ">= 2 estimates, mcap >= $300M, price >= $5, tradable on Alpaca",
+ "source": "Nasdaq earnings calendar (unofficial public API) + Alpaca SIP daily bars",
+ "reports_in_window": 545,
+ "eligible_reports": 418,
+ "top_decile_threshold_pct": 30.88,
+ "top_decile_symbols": 42,
+ "names": [
+  [
+   "CBRL",
+   395.0,
+   "2026-09-23"
+  ],
+  [
+   "SPCX",
+   250.0,
+   "2026-10-20"
+  ],
+  [
+   "EGBN",
+   125.71,
+   "2026-10-21"
+  ],
+  [
+   "JILL",
+   110.17,
+   "2026-09-09"
+  ],
+  [
+   "APOG",
+   98.31,
+   "2026-10-06"
+  ],
+  [
+   "HELE",
+   84.37,
+   "2026-10-08"
+  ],
+  [
+   "LUXE",
+   76.47,
+   "2026-09-16"
+  ],
+  [
+   "DOO",
+   71.74,
+   "2026-09-03"
+  ],
+  [
+   "LADR",
+   66.67,
+   "2026-10-16"
+  ],
+  [
+   "HCSG",
+   63.64,
+   "2026-10-21"
+  ],
+  [
+   "AVO",
+   60.0,
+   "2026-09-08"
+  ],
+  [
+   "HAS",
+   55.91,
+   "2026-10-20"
+  ],
+  [
+   "IOT",
+   50.0,
+   "2026-09-03"
+  ],
+  [
+   "RLI",
+   48.28,
+   "2026-10-19"
+  ],
+  [
+   "DELL",
+   43.22,
+   "2026-09-01"
+  ],
+  [
+   "AGX",
+   40.3,
+   "2026-09-02"
+  ],
+  [
+   "WFRD",
+   37.19,
+   "2026-10-20"
+  ],
+  [
+   "CHMG",
+   36.27,
+   "2026-10-22"
+  ],
+  [
+   "SAIC",
+   33.78,
+   "2026-08-31"
+  ],
+  [
+   "IRDM",
+   31.03,
+   "2026-10-20"
+  ]
+ ]
+}
+2026-10-26 12:32:22 CET [LISTS] done rc=0
