@@ -72,6 +72,13 @@ class Mapping(unittest.TestCase):
         self.assertIn("n/a", why[0]); self.assertIsNone(c["buyers_h1"] or None)
 
     def test_thresholds_unchanged(self):
+        # 2026-10-28: these are the CODE base values. The self-learner (learner_overrides.json, bounded + gated) may legitimately tighten
+        # scan.RULES.* at runtime (e.g. pumpswap.mcap_min 40k -> 50k on 27.10.) and the runner imports that state before the pre-start
+        # tests; comparing the live dict made every run fail. Compare the pre-override base values captured by learner.apply() instead.
+        import learner
+        for n, v in learner.BASE.items():
+            spec = learner.PARAMS.get(n)
+            if spec and spec["mod"] == "scan": learner._set(vars(scan), spec["path"], v)   # back to the code value, in place
         self.assertEqual(scan.RULES["bonding_curve"], {"age_min_h": 0.25, "age_max_h": 72, "mcap_min": 15_000, "mcap_max": 90_000, "vol24_min": 20_000, "liq_min": 5_000, "max_vol24_to_liq": 100})
         self.assertEqual(scan.RULES["pumpswap"], {"age_min_h": 0.25, "age_max_h": 72, "mcap_min": 40_000, "mcap_max": 8_000_000, "vol24_min": 40_000, "liq_min": 12_000, "max_vol24_to_liq": 40})
         self.assertEqual((scan.RULES["min_buys_h1"], scan.RULES["min_buys_m15"], scan.RULES["max_out"]), (10, 2, 60))
