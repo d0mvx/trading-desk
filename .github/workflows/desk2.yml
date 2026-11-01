@@ -1,0 +1,121 @@
+# desk2 PAPER memecoin desk, 24/7 on GitHub Actions. PAPER ONLY (LIVE is hard-locked in code, no order path exists).
+# One long job (~5h50m) per run; ~16 min before its end it dispatches its successor (other slot), the successor runs
+# setup + tests while this run still trades, then requests the handoff (gh/runner.py). The ngrok domain and the
+# trading loop are only ever owned by one run. State = encrypted snapshot on branch `state-desk2` (desk2/gh/state.py). Secrets: DESK2_*.
+name: desk2-paper
+
+on:
+  schedule:
+    - cron: "7 */6 * * *"          # safety net only (noop while a run is live); normal chain = self-dispatch
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: "a|b (handoff chain alternates; leave empty for a manual start)"
+        required: false
+        default: ""
+      pred:
+        description: "predecessor run id (or 'box'); empty = auto-detect a live run"
+        required: false
+        default: ""
+
+concurrency:
+  # one run per slot; a successor (other slot) can prepare while its predecessor still trades.
+  group: desk2-paper-${{ github.event.inputs.slot || (github.event_name == 'schedule' && 'sched' || 'manual') }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write                  # push branches state / handoff-req
+  actions: write                   # self-dispatch of the successor
+
+jobs:
+  desk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 358
+    defaults:
+      run:
+        working-directory: desk2     # desk2 lives in a subfolder of d0mvx/trading-desk; the old desk is untouched
+    env:
+      TZ: Europe/Berlin
+      PYTHONUNBUFFERED: "1"
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Record job start
+        run: echo "JOB_START=$(date +%s)" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Role (noop if the safety net fires while a run is live)
+        id: role
+        run: |
+          ROLE=$(python3 gh/runner.py --role-only --me "$GITHUB_RUN_ID" --event "$GITHUB_EVENT_NAME" --pred "${{ github.event.inputs.pred }}")
+          echo "role=$ROLE" >> "$GITHUB_OUTPUT"; echo "role: $ROLE"
+
+      - uses: actions/setup-python@v5
+        if: steps.role.outputs.role != 'noop'
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: desk2/requirements.txt
+
+      - name: Venv, ngrok, secret files (runner-local, gitignored)
+        if: steps.role.outputs.role != 'noop'
+        env:
+          APP_TOKEN: ${{ secrets.DESK2_APP_TOKEN }}
+          DATA_PATH: ${{ secrets.DESK2_DATA_PATH }}
+          VAPID_PRIVATE_KEY: ${{ secrets.DESK2_VAPID_PRIVATE_KEY }}
+          VAPID_PUBLIC_KEY: ${{ secrets.DESK2_VAPID_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          python -m venv .venv && .venv/bin/pip install -q --disable-pip-version-check -r requirements.txt
+          curl -sSfL https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz | tar xz -C "$RUNNER_TEMP"
+          echo "NGROK=$RUNNER_TEMP/ngrok" >> "$GITHUB_ENV"
+          umask 077; mkdir -p .secrets logs
+          printf '%s' "$APP_TOKEN" > .secrets/app_token
+          printf '%s' "$DATA_PATH" > .secrets/data_path
+          printf '%s\n' "$VAPID_PRIVATE_KEY" > .secrets/vapid_private.pem
+          printf '%s' "$VAPID_PUBLIC_KEY" > .secrets/vapid_public.txt
+          for f in app_token data_path vapid_private.pem vapid_public.txt; do test -s ".secrets/$f" || { echo "::error::secret for $f missing"; exit 1; }; done
+
+      - name: Tests must pass before the desk runs
+        if: steps.role.outputs.role != 'noop'
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.DESK2_TYPESAFE_API_KEY }}
+          HELIUS_API_KEY: ${{ secrets.DESK2_HELIUS_API_KEY }}
+          NGROK_AUTHTOKEN: ${{ secrets.DESK2_NGROK_AUTHTOKEN }}
+        run: .venv/bin/python -m pytest -q -p no:cacheprovider desk/tests
+
+      - name: Desk (~5h50m, handoff to successor)
+        if: steps.role.outputs.role != 'noop'
+        timeout-minutes: 352
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.DESK2_TYPESAFE_API_KEY }}
+          HELIUS_API_KEY: ${{ secrets.DESK2_HELIUS_API_KEY }}
+          NGROK_AUTHTOKEN: ${{ secrets.DESK2_NGROK_AUTHTOKEN }}
+          DESK_STATE_KEY: ${{ secrets.DESK2_STATE_KEY }}
+          PY: .venv/bin/python
+        run: |
+          exec .venv/bin/python gh/runner.py --me "$GITHUB_RUN_ID" --event "$GITHUB_EVENT_NAME" \
+            --slot "${{ github.event.inputs.slot || 's' }}" --pred "${{ github.event.inputs.pred }}" --job-start "$JOB_START"
+
+      - name: Save state (always, unless already released to a successor)
+        if: always() && steps.role.outputs.role != 'noop'
+        timeout-minutes: 4
+        env:
+          DESK_STATE_KEY: ${{ secrets.DESK2_STATE_KEY }}
+        run: |
+          [ -f .released ] && { echo "state already released ($(cat .released))"; exit 0; }
+          [ -f desk.db ] || { echo "desk never started, nothing to save"; exit 0; }
+          pkill -f "ngrok http" || true; pkill -f "desk.main" || true; sleep 2
+          .venv/bin/python - <<'PY'
+          import sys; sys.argv = ["x"]; sys.path.insert(0, "gh")
+          import runner, time
+          runner.save_state("${{ github.run_id }}", released_for="any", stopped_at=time.time(), note="save-step ${{ job.status }}")
+          PY
+
+      - name: Re-dispatch if the desk died early (chain keeper)
+        if: failure() && steps.role.outputs.role != 'noop'
+        run: |
+          if [ $(( $(date +%s) - JOB_START )) -gt 600 ]; then gh workflow run desk2.yml --ref main; fi
