@@ -1,5 +1,5 @@
 """Health (replaces the STEP 10 health routine, which the user forbade): exit 1 when the desk is unhealthy.
-Rules: any agent heartbeat older than 2 min, or > 10 PumpPortal ws reconnects in the last hour. Used by the supervisor."""
+Rules: any agent heartbeat older than 2 min, or > 10 unexpected PumpPortal ws reconnects in the last hour. Used by the supervisor."""
 from __future__ import annotations
 import sys, datetime as dt
 from . import db, util, log
@@ -19,7 +19,10 @@ def check() -> list[str]:
         if age > 120:
             bad.append(f"{a}: heartbeat {age:.0f}s old")
     hour = util.iso(now - dt.timedelta(hours=1))
-    n = (db.one("SELECT COUNT(*) n FROM events WHERE kind='ws_connect' AND ts>?", (hour,)) or {}).get("n", 0)
+    # Only UNEXPECTED reconnects count: the first connect after each desk start and the planned
+    # resubscribe after 120s of silence (quiet nights) are normal and must not trigger a restart loop.
+    c = {r["kind"]: r["n"] for r in db.q("SELECT kind, COUNT(*) n FROM events WHERE kind IN ('ws_connect','start','ws_silent') AND ts>? GROUP BY kind", (hour,))}
+    n = max(0, c.get("ws_connect", 0) - c.get("start", 0) - c.get("ws_silent", 0))
     if n > 10:
         bad.append(f"ws reconnects {n}/h")
     return bad
