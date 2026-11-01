@@ -40,6 +40,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Record job start
+        working-directory: .        # runs before checkout, desk2/ does not exist yet
         run: echo "JOB_START=$(date +%s)" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v4
