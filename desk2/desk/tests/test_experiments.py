@@ -249,3 +249,11 @@ def test_auditor_reject_goes_to_shadow(tdb, monkeypatch):
     assert not asyncio.run(auditor.audit({"mint": MINT, "scan_price": 0.5, "scan_liq": 70_000, "tags": ["established"]}))
     r = db.one("SELECT * FROM shadow WHERE mint=?", (MINT,))
     assert r["rule"] == "auditor: Dev wallet" and r["price"] == 0.5 and r["tags"] == "established"
+
+def test_shadow_suspect_multiples_excluded(tdb):
+    for m, liq, x in (("S1pump", 50, 3.0), ("S2pump", 30_000, 500.0), ("S3pump", 30_000, 3.0)):
+        db.insert("shadow", mint=m, ts=util.iso(), stage="scanner", rule="scanner: liq", reason="liq", price=1.0, liq=liq,
+                  p6=x, l6=50_000, x6=x, t6=util.iso())
+    d = shadow.summary()["rules"]["scanner: liq"]
+    assert d["x2_6h"] == 1 and d["suspect_6h"] == 2
+    assert [w["mint"] for w in shadow.summary()["top_missed"]] == ["S3pump"]

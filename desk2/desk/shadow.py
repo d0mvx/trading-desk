@@ -140,10 +140,17 @@ async def loop():
             L.exception("shadow loop: %s", e)
         await asyncio.sleep(300)
 
+SUSPECT_X, SUSPECT_LIQ = 100, 1000
+
+def _suspect(r, x) -> bool:
+    """price at rejection came from a dust pool (< $1K) or the move is > 100x: different pair/units, not a real miss."""
+    return r[x] is not None and ((r["liq"] is not None and r["liq"] < SUSPECT_LIQ) or r[x] > SUSPECT_X)
+
 def summary(since: str | None = None, top: int = 10) -> dict:
     rows = db.q("SELECT * FROM shadow WHERE ts>=? ORDER BY ts", (since or "0",))
     rules = defaultdict(lambda: {"rejected": 0, "no_price": 0, "checked_6h": 0, "x1_5_6h": 0, "x2_6h": 0, "died_6h": 0,
-                                 "checked_24h": 0, "x1_5_24h": 0, "x2_24h": 0, "died_24h": 0, "gone_6h": 0, "gone_24h": 0})
+                                 "checked_24h": 0, "x1_5_24h": 0, "x2_24h": 0, "died_24h": 0, "gone_6h": 0, "gone_24h": 0,
+                                 "suspect_6h": 0, "suspect_24h": 0})
     winners = []
     for r in rows:
         d = rules[r["rule"]]
@@ -154,13 +161,15 @@ def summary(since: str | None = None, top: int = 10) -> dict:
             d[f"checked_{h}"] += 1
             if r[p] is None and r[l] is None:
                 d[f"gone_{h}"] += 1
+            if _suspect(r, x):
+                d[f"suspect_{h}"] += 1; continue
             if r[x] is not None and (r[l] or 0) >= WIN_LIQ:
                 if r[x] >= 1.5: d[f"x1_5_{h}"] += 1
                 if r[x] >= 2: d[f"x2_{h}"] += 1
             if (r[x] is not None and r[x] < 0.5) or (r[l] is not None and r[l] < DEAD_LIQ) or (r[p] is None and r[l] is None):
                 d[f"died_{h}"] += 1
         best = max([(r[x], r[l], h) for x, l, h in (("x6", "l6", "6h"), ("x24", "l24", "24h"))
-                    if r[x] is not None and (r[l] or 0) >= WIN_LIQ], default=None)
+                    if r[x] is not None and (r[l] or 0) >= WIN_LIQ and not _suspect(r, x)], default=None)
         if best and best[0] >= 1.5:
             c = db.coin(r["mint"]) or {}
             winners.append({"mint": r["mint"], "name": c.get("symbol") or c.get("name") or util.short(r["mint"]),
@@ -172,6 +181,7 @@ def summary(since: str | None = None, top: int = 10) -> dict:
             "pending_24h": sum(1 for r in rows if not r["t24"]),
             "rules": dict(sorted(rules.items(), key=lambda kv: -kv[1]["rejected"])), "top_missed": winners[:top],
             "definitions": {"x1_5/x2": f"multiple vs rejection price, liquidity still >= ${WIN_LIQ:,}",
+                            "suspect": f"rejection liquidity < ${SUSPECT_LIQ:,} or > {SUSPECT_X}x (pair/units mismatch): excluded",
                             "died": f"< 0.5x or liquidity < ${DEAD_LIQ:,} or no longer listed on DexScreener"}}
 
 def markdown(since: str, title: str) -> list[str]:
