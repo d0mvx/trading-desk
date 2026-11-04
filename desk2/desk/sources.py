@@ -29,7 +29,8 @@ _client_loop = None
 DEX = _Limiter(250 / 60)          # stay under 250 requests/min (STEP 6)
 RUG = _Limiter(3)
 RPC = _Limiter(8)                 # Helius free: 10 req/s
-GPA = _Limiter(4)                 # Helius free: getProgramAccounts 5/s
+GPA = _Limiter(4)
+GT = _Limiter(0.2)                # GeckoTerminal free: ~30 calls/min advertised, bursts 429 -> 12/min
 
 def client() -> httpx.AsyncClient:
     global _client, _client_loop
@@ -57,6 +58,29 @@ async def dex_pairs(pools: list[str]) -> dict[str, dict]:
         for p in (j.get("pairs") or []):
             out[p.get("pairAddress")] = p
     return out
+
+async def dex_tokens(mints: list[str]) -> list[dict]:
+    """tokens/v1/solana/{mint,...}: all pairs of up to 30 base mints per call (shadow re-reads, established check)."""
+    out = []
+    for i in range(0, len(mints), 30):
+        j = await _get("https://api.dexscreener.com/tokens/v1/solana/" + ",".join(mints[i:i + 30]), DEX)
+        out += j if isinstance(j, list) else []
+    return out
+
+async def dex_list(path: str) -> list[dict]:
+    """token-boosts/top/v1, token-boosts/latest/v1, token-profiles/latest/v1 (lists of {chainId, tokenAddress, ...})."""
+    j = await _get(f"https://api.dexscreener.com/{path}", DEX)
+    return j if isinstance(j, list) else []
+
+async def gt_pumpswap_pools(page: int, sort: str) -> list[dict]:
+    """GeckoTerminal (free, ~30 calls/min): PumpSwap pools on Solana, 20 per page, sorted by h24_volume_usd_desc|h24_tx_count_desc."""
+    j = await _get(f"https://api.geckoterminal.com/api/v2/networks/solana/dexes/pumpswap/pools?page={page}&sort={sort}", GT)
+    return j.get("data") or [] if isinstance(j, dict) else []
+
+async def gt_pool(pool: str) -> dict | None:
+    """GeckoTerminal pool: unique buyers/sellers per window (DexScreener has no maker counts)."""
+    j = await _get(f"https://api.geckoterminal.com/api/v2/networks/solana/pools/{pool}", GT)
+    return j.get("data") if isinstance(j, dict) else None
 
 async def dex_token_pairs(mint: str) -> list[dict]:
     j = await _get(f"https://api.dexscreener.com/token-pairs/v1/solana/{mint}", DEX)

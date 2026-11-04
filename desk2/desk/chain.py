@@ -16,6 +16,8 @@ def pair_view(p: dict | None) -> dict | None:
     return {"pool": r("pair_address"), "dex": r("dex_id"), "name": r("name"), "symbol": r("symbol"),
             "price": price, "liquidity": fnum(r("liquidity_usd")), "mcap": fnum(r("market_cap")), "fdv": fnum(r("fdv")),
             "vol_m5": fnum(r("volume_m5")), "vol_h1": fnum(r("volume_h1")), "vol_h24": fnum(r("volume_h24")),
+            "buys_h6": r("buys_h6"), "sells_h6": r("sells_h6"), "buys_h24": r("buys_h24"), "sells_h24": r("sells_h24"),
+            "base_mint": r("base_mint"),
             "buys_m5": r("buys_m5"), "sells_m5": r("sells_m5"), "buys_h1": r("buys_h1"), "sells_h1": r("sells_h1"),
             "ch_m5": fnum(r("price_change_m5")), "ch_h1": fnum(r("price_change_h1")), "ch_h24": fnum(r("price_change_h24")),
             "created_ms": r("pair_created_at"), "image": r("image_url"),
@@ -125,3 +127,15 @@ def biggest_bundle(graph, holders_only: bool = True) -> int | None:
                     seen.add(nb); stack.append(nb)
         best = max(best, size)
     return best
+
+async def wallet_age_days(owner: str) -> tuple[float | None, bool]:
+    """age of the oldest of the last 1000 signatures (one call). (days, capped) - capped=True means 1000 txs returned,
+    so the wallet is at least that old. (None, False) when it has no signatures."""
+    import time
+    j = await S.rpc("getSignaturesForAddress", [owner, {"limit": 1000}])
+    vals = F.read(j, F.RPC_SIGS, "values") or []
+    bts = [F.get(v, F.RPC_SIGS["block_time"]) for v in vals]
+    bts = [b for b in bts if b]
+    if not bts:
+        return None, False
+    return (time.time() - min(bts)) / 86400, len(vals) >= 1000

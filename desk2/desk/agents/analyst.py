@@ -2,7 +2,7 @@
 A Jev error in jev mode never falls back silently."""
 from __future__ import annotations
 import asyncio, hashlib, json, os, time, httpx
-from .. import db, util, config, bus, log, fields as F, sources as S, chain
+from .. import db, util, config, bus, log, fields as F, sources as S, chain, shadow, tags as T
 
 L = log.get("analyst")
 NAME = "analyst"
@@ -25,14 +25,78 @@ def audit_values(mint) -> dict:
     rows = db.q("SELECT layer, value_text FROM audits WHERE mint=? ORDER BY id DESC LIMIT 8", (mint,))
     return {r["layer"]: r["value_text"] for r in rows}
 
-def build_state(name, age_min, v: dict, audit: dict, max_chars=3000) -> str:
+def build_state(name, age_min, v: dict, audit: dict, max_chars=3000, extra: dict | None = None) -> str:
     dev = (audit.get(3) or "n/a").split("%")[0]
-    st = (f"Coin {name} on Solana, graduated {age_min:.0f} min ago. Liquidity ${_n(v['liquidity'])}. Market cap ${_n(v['mcap'])}.\n"
+    ago = f"{age_min / 1440:.1f} days" if age_min >= 2880 else f"{age_min:.0f} min"
+    st = (f"Coin {name} on Solana, graduated {ago} ago. Liquidity ${_n(v['liquidity'])}. Market cap ${_n(v['mcap'])}.\n"
           f"Last 5 min: {_n(v['buys_m5'], '{}')} buys, {_n(v['sells_m5'], '{}')} sells, volume ${_n(v['vol_m5'])}, price {_n(v['ch_m5'], '{:g}')}%.\n"
           f"Last 1h: {_n(v['buys_h1'], '{}')} buys, {_n(v['sells_h1'], '{}')} sells, volume ${_n(v['vol_h1'])}, price {_n(v['ch_h1'], '{:g}')}%.\n"
           f"Top 10 hold {(audit.get(4) or 'n/a').rstrip('%')}%. Dev holds {dev}%, sold 0. LP {audit.get(5) or 'n/a'}. "
           f"Bundled {audit.get(7) or 'n/a'}. Delegations {audit.get(8) or 'n/a'}.")
+    if extra:
+        st += "\n" + extra_text(extra)
     return st[:max_chars]
+
+def extra_text(e: dict) -> str:
+    h = e.get("holders") or {}
+    tx = e.get("txns") or {}
+    mk = e.get("makers") or {}
+    lines = []
+    if h.get("now") is not None or h.get("at_scan") is not None:
+        ch = (f", {h['now'] - h['at_scan']:+,} in {h['minutes']:.0f} min" if h.get("now") is not None and h.get("at_scan") is not None
+              and h.get("minutes") else "")
+        lines.append(f"Holders {_n(h.get('now'))} now (at scanner {_n(h.get('at_scan'))}{ch}).")
+    parts = [f"{w} {_n(tx.get('buys_' + w), '{}')} buys / {_n(tx.get('sells_' + w), '{}')} sells" for w in ("m5", "h1", "h6", "h24")
+             if tx.get("buys_" + w) is not None]
+    if parts: lines.append("Trades: " + ", ".join(parts) + ".")
+    parts = [f"{w} {_n(mk.get('buyers_' + w), '{}')} buyers / {_n(mk.get('sellers_' + w), '{}')} sellers" for w in ("m5", "h1", "h24")
+             if mk.get("buyers_" + w) is not None]
+    if parts: lines.append("Unique wallets: " + ", ".join(parts) + ".")
+    ages = [a for a in (e.get("top_wallet_age_days") or []) if a.get("days") is not None]
+    if ages:
+        lines.append("Top holder wallet ages (oldest of last 1000 tx): " +
+                     ", ".join(f"{a['pct']:.1f}% holder {'>=' if a['capped'] else ''}{a['days']:.1f}d" for a in ages) + ".")
+    return "\n".join(lines)
+
+async def gather_extra(m: str, coin: dict, v: dict, item: dict) -> dict:
+    """extra, sourced inputs for Jev (analyst.extra_data_on). Every field null when its source has no data.
+    holders: RugCheck totalHolders at scanner vs now. txns: DexScreener buys/sells. makers: GeckoTerminal unique
+    buyers/sellers. top_wallet_age_days: top 5 non-pool holders' owners, Helius getSignaturesForAddress (1 call each)."""
+    e = {"holders": None, "txns": {k: v.get(k) for k in ("buys_m5", "sells_m5", "buys_h1", "sells_h1",
+                                                          "buys_h6", "sells_h6", "buys_h24", "sells_h24")},
+         "makers": None, "top_wallet_age_days": None}
+    rep0 = item.get("report") or {}
+    try:
+        rep = await S.rug_report(m)
+        at_scan = F.read(rep0, F.RUGCHECK_REPORT, "total_holders")
+        now_h = F.read(rep, F.RUGCHECK_REPORT, "total_holders")
+        mins = (time.time() - item["scan_t"]) / 60 if item.get("scan_t") else None
+        e["holders"] = {"at_scan": at_scan, "now": now_h, "minutes": mins}
+    except Exception as ex:
+        rep = rep0; L.info("extra holders %s: %s", m, ex)
+    try:
+        if coin.get("pool"):
+            g = await S.gt_pool(coin["pool"])
+            if g:
+                e["makers"] = {k: F.read(g, F.GECKO_POOL, k) for k in ("buyers_m5", "sellers_m5", "buyers_h1", "sellers_h1",
+                                                                         "buyers_h24", "sellers_h24")}
+    except Exception as ex:
+        L.info("extra makers %s: %s", m, ex)
+    try:
+        excl = chain.amm_accounts(rep, coin.get("pool"))
+        tops = [h for h in (F.read(rep, F.RUGCHECK_REPORT, "top_holders") or [])
+                if h.get("owner") and h.get("owner") not in excl and h.get("address") not in excl][:5]
+        ages = []
+        for h in tops:
+            try:
+                d, capped = await chain.wallet_age_days(h["owner"])
+            except Exception:
+                d, capped = None, False
+            ages.append({"owner": h["owner"], "pct": chain.fnum(h.get("pct")) or 0, "days": d, "capped": capped})
+        e["top_wallet_age_days"] = ages or None
+    except Exception as ex:
+        L.info("extra wallet ages %s: %s", m, ex)
+    return e
 
 def gate(a: dict, s: dict) -> tuple[int, bool, list[str]]:
     score = round(100 * (a["alive_6h"] + a["organic"] + a["flush"] + (1 - a["chase"])) / 4)
@@ -102,18 +166,25 @@ async def analyse(item: dict) -> dict:
     s = config.all_settings()
     coin = db.coin(m) or {}
     name = coin.get("symbol") or coin.get("name") or util.short(m)
-    if db.one("SELECT 1 FROM verdicts WHERE mint=? AND ts>=?", (m, util.iso(util.night_start(s["desk.report_time"])))):
-        L.info("already scored %s tonight, not re-asking", m)
+    if item.get("source") == "established":   # established coins come back after the cooldown, not once a night
+        since = util.iso(util.now() - __import__("datetime").timedelta(hours=s["scanner.established_cooldown_h"]))
+    else:
+        since = util.iso(util.night_start(s["desk.report_time"]))
+    if db.one("SELECT 1 FROM verdicts WHERE mint=? AND ts>=?", (m, since)):
+        L.info("already scored %s recently, not re-asking", m)
         return {"skip": True}
     pools = [coin.get("pool")] if coin.get("pool") else []
     v = chain.pair_view((await S.dex_pairs(pools)).get(coin.get("pool"))) if pools else None
     if not v or v["price"] is None:
         out = {"agent": "analyst", "mint": m, "answers": None, "score": 0, "passed": False, "failed": ["no price"], "model": None, "inputTokens": 0}
-        _record(m, name, out, None); return out
+        _record(m, name, out, None, item); return out
     db.price(m, v["price"], v["vol_m5"])
     audit = audit_values(m)
     age = (time.time() * 1000 - v["created_ms"]) / 60000 if v["created_ms"] else 0
-    state = build_state(coin.get("name") or name, age, v, audit, s["analyst.max_state_chars"])
+    extra = None
+    if s["analyst.extra_data_on"] and s["analyst.mode"] != "rules":
+        extra = await gather_extra(m, coin, v, item)
+    state = build_state(coin.get("name") or name, age, v, audit, s["analyst.max_state_chars"], extra)
     shash = hashlib.sha256(state.encode()).hexdigest()[:16]
     mode = s["analyst.mode"]
     try:
@@ -130,23 +201,47 @@ async def analyse(item: dict) -> dict:
     except BadAnswer as e:
         a, model, tokens, score, passed, failed = None, None, 0, 0, False, ["bad answer"]
     out = {"agent": "analyst", "mint": m, "answers": a, "score": score, "passed": passed, "failed": failed,
-           "model": model, "inputTokens": tokens, "price": v["price"], "state_hash": shash, "mode": mode}
+           "model": model, "inputTokens": tokens, "price": v["price"], "state_hash": shash, "mode": mode, "extra": extra}
+    if passed:
+        if extra is not None:
+            T.add(item, "jev_plus", NAME)
+        if not gate(a, {**s, **{k: T.OLD[k] for k in T.OLD if k.startswith("analyst.")}})[1]:
+            T.add(item, "jev_loose", NAME)     # the old gate 0.70 / 0.65 / 0.30 / 70 would have rejected it
+        out["borderline"] = borderline(a, score, s)
     L.info("mint=%s state=%s answers=%s score=%s verdict=%s tokens=%s", m, shash, a, score, "pass" if passed else "reject", tokens)
-    _record(m, name, out, v)
+    _record(m, name, out, v, item)
     return out
 
-def _record(m, name, out, v):
+def _rule(f: str) -> str:
+    w = f.split()[0] if f else "reject"
+    return w if w in ("alive_6h", "organic", "chase", "score") else f
+
+def borderline(a: dict, score: int, s: dict) -> list[str]:
+    """why a passing verdict is borderline (Jev part; the executor adds bundled 5-6 / top10 25-30)."""
+    why = []
+    if score < 60: why.append(f"score {score}")
+    if round(a["alive_6h"] - s["analyst.min_alive_6h"], 6) <= 0.05: why.append("alive_6h near min")
+    if round(a["organic"] - s["analyst.min_organic"], 6) <= 0.05: why.append("organic near min")
+    if round(s["analyst.max_chase"] - a["chase"], 6) <= 0.05: why.append("chase near max")
+    if score - s["analyst.min_score"] <= 5: why.append("score near min")
+    return why
+
+def _record(m, name, out, v, item=None):
+    item = item or {}
     a = out["answers"] or {}
     label = "Analyst (rules)" if out.get("model") == "rules" else "Analyst"
-    db.x("INSERT INTO verdicts(mint,ts,alive_6h,organic,flush,chase,score,pass,reason,input_tokens) VALUES(?,?,?,?,?,?,?,?,?,?)",
+    db.x("INSERT INTO verdicts(mint,ts,alive_6h,organic,flush,chase,score,pass,reason,input_tokens,extra,tags) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
          (m, util.iso(), a.get("alive_6h"), a.get("organic"), a.get("flush"), a.get("chase"), out["score"],
-          1 if out["passed"] else 0, "; ".join(out["failed"]) or None, out["inputTokens"]))
+          1 if out["passed"] else 0, "; ".join(out["failed"]) or None, out["inputTokens"],
+          json.dumps(out.get("extra"), separators=(",", ":")) if out.get("extra") is not None else None, T.s(T.of(item))))
     bus.emit("verdict", {"mint": m, "name": name, "score": out["score"], "pass": out["passed"], "failed": out["failed"], "answers": a})
     if out["passed"]:
-        db.decide(NAME, m, name, f"Score {out['score']} · pass", True)
+        db.decide(NAME, m, name, f"Score {out['score']} · pass", True, tags=T.of(item))
     else:
         db.activity("rejected", m, label, f"Rejected {name}", f"{label} · {out['failed'][0]}", "Skipped")
-        db.decide(NAME, m, name, f"Score {out['score']} · {', '.join(out['failed'])}", False)
+        db.decide(NAME, m, name, f"Score {out['score']} · {', '.join(out['failed'])}", False, tags=T.of(item))
+        shadow.record(m, NAME, out["failed"][0], v["price"] if v else None, v["liquidity"] if v else None,
+                      tags=T.of(item), source=item.get("source"), rule="analyst: " + _rule(out["failed"][0]))
 
 async def run():
     while True:

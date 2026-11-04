@@ -38,6 +38,10 @@ DEXSCREENER_PAIR = {
     "sells_m5":        ("txns", "m5", "sells"),
     "buys_h1":         ("txns", "h1", "buys"),
     "sells_h1":        ("txns", "h1", "sells"),
+    "buys_h6":         ("txns", "h6", "buys"),
+    "sells_h6":        ("txns", "h6", "sells"),
+    "buys_h24":        ("txns", "h24", "buys"),
+    "sells_h24":       ("txns", "h24", "sells"),
     "price_change_m5": ("priceChange", "m5"),    # can be ABSENT (seen on stale pair: only h6/h24)
     "price_change_h1": ("priceChange", "h1"),    # can be ABSENT
     "price_change_h24":("priceChange", "h24"),
@@ -115,6 +119,25 @@ RPC_LARGEST = {"accounts": ("result", "value"), "address": ("address",), "amount
 RPC_MULTI = {"values": ("result", "value"), "owner": ("data", "parsed", "info", "owner")}
 RPC_OWNER_ACCOUNTS = {"values": ("result", "value")}   # list of RPC_TOKEN_ACCOUNT elements
 GPA = {"values": ("result",)}
+# ---- GeckoTerminal /networks/solana/dexes/pumpswap/pools + /networks/solana/pools/{pool} (verified 2026-11-04)
+GECKO_POOL = {
+    "pool":         ("attributes", "address"),
+    "created_at":   ("attributes", "pool_created_at"),      # ISO "2026-11-04T03:10:13Z"
+    "reserve_usd":  ("attributes", "reserve_in_usd"),       # STRING, pool liquidity $
+    "base_id":      ("relationships", "base_token", "data", "id"),   # "solana_<mint>"
+    "dex_id":       ("relationships", "dex", "data", "id"),          # "pumpswap"
+    "name":         ("attributes", "name"),
+    "buyers_m5":    ("attributes", "transactions", "m5", "buyers"),
+    "sellers_m5":   ("attributes", "transactions", "m5", "sellers"),
+    "buyers_h1":    ("attributes", "transactions", "h1", "buyers"),
+    "sellers_h1":   ("attributes", "transactions", "h1", "sellers"),
+    "buyers_h24":   ("attributes", "transactions", "h24", "buyers"),
+    "sellers_h24":  ("attributes", "transactions", "h24", "sellers"),
+}
+# ---- DexScreener token-boosts/top/v1, token-boosts/latest/v1, token-profiles/latest/v1 elements (verified 2026-11-04)
+DEXSCREENER_LIST = {"chain": ("chainId",), "mint": ("tokenAddress",)}
+# ---- getSignaturesForAddress element
+RPC_SIGS = {"values": ("result",), "block_time": ("blockTime",)}
 JEV = {"model": ("model",), "answers": ("answers",), "noul": ("noul",), "input_tokens": ("usage", "input_tokens"),
        "output_tokens": ("usage", "output_tokens")}
 # NOTE: getTokenLargestAccounts returned 429 on api.mainnet-beta.solana.com every try (2026-11-01).

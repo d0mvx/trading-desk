@@ -14,6 +14,15 @@ SPEC: dict[str, tuple] = {
     "scanner.min_pool_age_min": (10, int, 0, 240, "min pool age min"),
     "scanner.max_wait_min": (60, int, 5, 720, "max wait in room min"),
     "scanner.runner_h24_pct": (300, float, 0, 100_000, "runner = 24h change >= %"),
+    "scanner.rocket_pullback_on": (True, bool, None, None, "h1 rocket waits for a pullback instead of a kill"),
+    "scanner.rocket_pullback_pct": (15, float, 1, 90, "rocket passes after pulling back >= % from its room peak"),
+    "scanner.established_on": (True, bool, None, None, "second scanner: established pump.fun coins"),
+    "scanner.established_every_min": (10, int, 2, 240, "established scan every min"),
+    "scanner.established_min_age_days": (1, float, 0, 3650, "established min pool age days"),
+    "scanner.established_max_age_days": (30, float, 0, 3650, "established max pool age days"),
+    "scanner.established_min_liq_usd": (100000, float, 0, 100_000_000, "established min PumpSwap liquidity $"),
+    "scanner.established_cooldown_h": (6, float, 0.5, 168, "re-analyse an established coin at most every h"),
+    "scanner.established_max_per_scan": (10, int, 1, 100, "established coins added to the room per scan"),
     # Auditor
     "auditor.enabled": (True, bool, None, None, "take apart before buying"),
     "auditor.max_dev_pct": (5, float, 0, 100, "max dev holding %"),
@@ -32,6 +41,7 @@ SPEC: dict[str, tuple] = {
     "analyst.min_score": (70, int, 0, 100, "min score"),
     "analyst.timeout_s": (10, float, 1, 60, "Jev timeout s"),
     "analyst.max_state_chars": (3000, int, 500, 20000, "max STATE chars"),
+    "analyst.extra_data_on": (True, bool, None, None, "Jev gets holder trend, buyers/sellers, top-holder wallet age"),
     "analyst.rules_alive_volume_h1": (25000, float, 0, 10_000_000, "rules: alive if 1h volume >= $"),
     "analyst.rules_organic_buys_h1": (150, int, 0, 100_000, "rules: organic if 1h buys >="),
     "analyst.rules_bundled_penalty": (0.5, float, 0, 1, "rules: organic x this if bundled"),
@@ -41,6 +51,8 @@ SPEC: dict[str, tuple] = {
     # Executor
     "executor.stack_pct": (8, float, 0.1, 100, "size % of stack"),
     "executor.max_pool_pct": (2, float, 0.01, 100, "max % of pool liquidity"),
+    "executor.borderline_on": (True, bool, None, None, "smaller ticket for borderline passes"),
+    "executor.borderline_stack_pct": (4, float, 0.1, 100, "borderline size % of stack"),
     "executor.min_ticket_usd": (47.50, float, 0, 100_000, "min ticket $"),
     "executor.below_min": ("off", str, ["off", "bump", "skip"], None, "below min ticket: off|bump|skip"),
     "executor.recheck_liq_drop_pct": (20, float, 0, 100, "skip if liquidity down > %"),
@@ -66,6 +78,8 @@ SPEC: dict[str, tuple] = {
     "desk.notifier": ("webpush", str, ["webpush"], None, "notifier"),
     "desk.rpc_url": ("https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}", str, r"^https://", None, "RPC url template"),
     "desk.push_rejects": (False, bool, None, None, "push Auditor/Analyst rejects"),
+    "desk.shadow_on": (True, bool, None, None, "shadow list: re-read rejected coins at +6h/+24h"),
+    "desk.shadow_keep_days": (14, int, 2, 365, "keep shadow rows days"),
 }
 
 ALIASES = {"stop": "risk.stop_pct", "trail": "risk.trail_pct", "trail_start": "risk.trail_start_pct",

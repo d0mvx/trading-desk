@@ -96,6 +96,13 @@ def markdown(current=False) -> str:
         L.append(f"- {_ln(v['mint'])} score {v['score']} · {(v['reason'] or '').split(';')[0]} at {_t(v['ts'])}")
     L.append(f"\nJev input tokens {d['tokens']:,} · cost ${d['jev_cost']:.4f} (at ${JEV_PER_M_INPUT}/1M input)")
     L.append(f"Fees + slippage paid (model, fees.py): ${d['fees']:,.2f}")
+    from . import shadow, tags
+    L += shadow.markdown(util.iso(d["a"] - dt.timedelta(days=1)), "Shadow list (rejections of the last 2 nights, re-read at +6h / +24h)")
+    ex = tags.experiments()["tags"]
+    L.append("\n## Experiments (PAPER)")
+    for k, e in ex.items():
+        L.append(f"- **{k}**: {e['coins']} coins · passed {', '.join(f'{st} {n}' for st, n in e['passed'].items()) or '-'} · "
+                 f"{e['trades']} trades ({e['open']} open) · PnL {'+' if e['pnl_usd'] >= 0 else '-'}${abs(e['pnl_usd']):,.2f}")
     L.append("\n## Health")
     for h in d["hb"]:
         age = (util.now() - util.parse(h["ts"])).total_seconds()

@@ -2,7 +2,7 @@
 from __future__ import annotations
 import asyncio, os, signal
 import uvicorn
-from . import db, util, config, account, log, bus
+from . import db, util, config, account, log, bus, shadow
 from .agents import scanner, auditor, analyst, executor, risk
 from .api import app
 
@@ -54,7 +54,7 @@ async def main():
     server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=PORT, log_level="warning", access_log=False, proxy_headers=True))
     await asyncio.gather(server.serve(), balance_loop(), guarded("scanner", scanner.run), guarded("auditor", auditor.run),
                          guarded("auditor_beat", auditor.beat), guarded("analyst", analyst.run),
-                         guarded("executor", executor.run), guarded("risk", risk.run), _beats())
+                         guarded("executor", executor.run), guarded("risk", risk.run), guarded("shadow", shadow.loop), _beats())
 
 async def _beats():
     while True:

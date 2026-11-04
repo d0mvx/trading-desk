@@ -39,7 +39,20 @@ CREATE TABLE IF NOT EXISTS agent_state (agent TEXT PRIMARY KEY, paused INTEGER, 
 CREATE INDEX IF NOT EXISTS scans_mint ON scans(mint);
 CREATE INDEX IF NOT EXISTS audits_mint ON audits(mint);
 CREATE INDEX IF NOT EXISTS activity_ts ON activity(ts);
+-- shadow list: every rejected coin, re-read at +6h/+24h (desk/shadow.py)
+CREATE TABLE IF NOT EXISTS shadow (id INTEGER PRIMARY KEY AUTOINCREMENT, mint TEXT, ts TEXT, stage TEXT, rule TEXT, reason TEXT,
+  price REAL, liq REAL, source TEXT, tags TEXT, p6 REAL, l6 REAL, x6 REAL, t6 TEXT, p24 REAL, l24 REAL, x24 REAL, t24 TEXT);
+CREATE INDEX IF NOT EXISTS shadow_ts ON shadow(ts);
+CREATE INDEX IF NOT EXISTS shadow_mint ON shadow(mint);
+-- experiments: one row each time a coin passes a stage only/also because of a tagged change (desk/tags.py)
+CREATE TABLE IF NOT EXISTS tag_events (id INTEGER PRIMARY KEY AUTOINCREMENT, mint TEXT, ts TEXT, tag TEXT, stage TEXT);
+CREATE INDEX IF NOT EXISTS tag_events_tag ON tag_events(tag);
 """
+
+# columns added after the first deploy (ALTER TABLE on old DBs restored from state-desk2)
+ADDED_COLS = {"coins": {"image": "TEXT", "source": "TEXT", "established_at": "TEXT", "tags": "TEXT"},
+              "decisions": {"tags": "TEXT"}, "positions": {"tags": "TEXT"}, "signals": {"tags": "TEXT"},
+              "verdicts": {"extra": "TEXT", "tags": "TEXT"}}
 
 _local = threading.local()
 
@@ -51,9 +64,11 @@ def conn() -> sqlite3.Connection:
         c.execute("PRAGMA journal_mode=WAL")
         c.execute("PRAGMA synchronous=NORMAL")
         c.executescript(SCHEMA)
-        cols = {r[1] for r in c.execute("PRAGMA table_info(coins)")}
-        if "image" not in cols:   # addition: coin logo for pushes
-            c.execute("ALTER TABLE coins ADD COLUMN image TEXT")
+        for t, add in ADDED_COLS.items():
+            cols = {r[1] for r in c.execute(f"PRAGMA table_info({t})")}
+            for col, typ in add.items():
+                if col not in cols:
+                    c.execute(f"ALTER TABLE {t} ADD COLUMN {col} {typ}")
         _local.c, _local.path = c, DB_PATH
     return c
 
@@ -100,8 +115,11 @@ def activity(kind, mint, agent, title, subtitle, value):
 def price(mint, p, vol_m5):
     insert("prices", mint=mint, ts=util.iso(), price=p, volume_m5=vol_m5)
 
-def decide(agent, mint, name, text, ok):
-    insert("decisions", ts=util.iso(), agent=agent, mint=mint, name=name, text=text, ok=1 if ok else 0)
+def decide(agent, mint, name, text, ok, tags=None):
+    """tags (experiment/source labels) are shown in the text too, so the app's decision list shows them."""
+    tg = ",".join(sorted(set(tags))) if tags else None
+    insert("decisions", ts=util.iso(), agent=agent, mint=mint, name=name, text=f"{text} [{tg}]" if tg else text,
+           ok=1 if ok else 0, tags=tg)
 
 def paused(agent) -> bool:
     r = one("SELECT paused FROM agent_state WHERE agent=?", (agent,))

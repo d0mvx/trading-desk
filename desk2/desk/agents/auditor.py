@@ -1,7 +1,7 @@
 """Auditor (PART 4): 8 layers, stop at the first red. Retry each read N times 2s apart; no data = red."""
 from __future__ import annotations
 import asyncio, time
-from .. import db, util, config, bus, log, fields as F, sources as S, chain, links, webpush
+from .. import db, util, config, bus, log, fields as F, sources as S, chain, links, webpush, shadow, tags as T
 
 L = log.get("auditor")
 NAME = "auditor"
@@ -94,6 +94,7 @@ async def layer(n: int, c: Ctx, s: dict) -> tuple[bool | None, str]:
                 return True, "None"
             return False, "no data: bundles"
         big = chain.biggest_bundle(g)
+        c.cache["bundle_n"] = big
         if big is None:
             return False, "no data: bundles"
         if big >= s["auditor.max_bundled"]:
@@ -151,14 +152,20 @@ async def audit(item: dict, record: bool = True) -> bool:
         return False
     if red_at:
         db.activity("rejected", m, "Auditor", f"Rejected {name}", f"Auditor · {reason}", "Skipped")
-        db.decide(NAME, m, name, f"Rejected · {reason} (layer {red_at})", False)
+        db.decide(NAME, m, name, f"Rejected · {reason} (layer {red_at})", False, tags=T.of(item))
+        pr = c.cache.get("pair") or {}
+        shadow.record(m, NAME, reason, pr.get("price") or item.get("scan_price"), pr.get("liquidity") or item.get("scan_liq"),
+                      tags=T.of(item), source=item.get("source"), rule=f"auditor: {LAYERS[red_at]}")
         L.info("REJECT %s layer %d %s", m, red_at, reason)
         if s["desk.push_rejects"]:
             await webpush.push(f"Rejected {name}", f"Auditor · {reason}", m, "rejected")
         return False
     if not record:
         return True
-    db.decide(NAME, m, name, "Cleared · 8/8 parts", True)
+    big = c.cache.get("bundle_n")
+    if big is not None and big >= T.OLD["auditor.max_bundled"]:   # passed only because max_bundled went 5 -> 7
+        T.add(item, "bundled_6", NAME)
+    db.decide(NAME, m, name, "Cleared · 8/8 parts", True, tags=T.of(item))
     L.info("CLEAR %s 8/8", m)
     return True
 

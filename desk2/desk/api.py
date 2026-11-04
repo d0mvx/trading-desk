@@ -68,7 +68,11 @@ def agents_summary():
     def a(name, **kw):
         return {"name": name, "paused": db.paused(name), "heartbeat": hb.get(name), **kw}
     return [
-        a("scanner", pools=pools, room=len(scanner.room), rows=[{"name": k["symbol"] or util.short(k["mint"]), "reason": k["reason"], "killed": k["verdict"] != "pass", "link": links.coin_url(k["mint"])} for k in kills]),
+        a("scanner", pools=pools, room=len(scanner.room),
+          waiting_liq=sum(1 for e in scanner.room.values() if e.get("liq_log")),
+          rockets=sum(1 for e in scanner.room.values() if e.get("rocket")),
+          established_in_room=sum(1 for e in scanner.room.values() if e.get("source") == "established"),
+          established=scanner.last_established, rows=[{"name": k["symbol"] or util.short(k["mint"]), "reason": k["reason"], "killed": k["verdict"] != "pass", "link": links.coin_url(k["mint"])} for k in kills]),
         a("auditor", taken=taken, rejected=rejected, enabled=s["auditor.enabled"], mint=last_audit["mint"] if last_audit else None,
           coin=name_of(last_audit["mint"]) if last_audit else None, layers=sorted(layers, key=lambda r: r["layer"])),
         a("analyst", score=v["score"] if v else None, coin=v["symbol"] if v else None, passed=bool(v["pass"]) if v else None,
@@ -198,6 +202,27 @@ async def get_settings():
 @app.get("/api/pushes", dependencies=A)
 async def pushes():
     return {"rows": db.q("SELECT id,ts,mint,kind,title,body,url,seen FROM pushes ORDER BY id DESC LIMIT 30")}
+
+@app.get("/api/shadow", dependencies=A)
+async def get_shadow(hours: float = 72, top: int = 15):
+    """rejected coins re-read at +6h/+24h, per rule: rejected, >=1.5x / >=2x with liq >= $20K, died, top missed."""
+    from . import shadow
+    return shadow.summary(util.iso(util.now() - __import__("datetime").timedelta(hours=hours)), top)
+
+@app.get("/api/experiments", dependencies=A)
+async def get_experiments():
+    """per experiment tag: coins that passed a stage because of the change, trades, PAPER PnL so far."""
+    from . import tags
+    return tags.experiments()
+
+@app.get("/api/scanner/room", dependencies=A)
+async def get_room():
+    from .agents import scanner
+    import time as _t
+    return {"room": [{"mint": m, "name": name_of(m), "source": e.get("source"), "waited_min": round((_t.time() - e["t0"]) / 60, 1),
+                      "first_liq": e.get("first_liq"), "peak": e.get("peak"), "rocket": bool(e.get("rocket")),
+                      "waiting_on_liq": bool(e.get("liq_log"))} for m, e in scanner.room.items()],
+            "established": scanner.last_established}
 
 @app.get("/api/report", dependencies=A)
 async def get_report():
