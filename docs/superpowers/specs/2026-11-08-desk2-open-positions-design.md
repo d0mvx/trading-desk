@@ -50,7 +50,9 @@ unrealized_pct = round(unrealized_usd / size_usd * 100, 4) if size_usd else null
 
 Rounding to 4 decimals matches stored `pnl_usd`. The client then shows dollars with the existing `money()` (two fractional digits) and percent with the existing `pct()`.
 
-Missing last price, entry of 0, or a null size: both unrealized fields are `null`. The client shows an em dash and "kein Kurs". It does not show 0 and it does not copy `account.unrealized`'s entry-price fallback. `equity()`, `free()`, and the executor stay on the current fallback so this display cannot change order size.
+Missing last price or a null size: both unrealized fields are `null`. The client shows an em dash and "kein Kurs". It does not show 0 and it does not copy `account.unrealized`'s entry-price fallback.
+
+A zero `entry_price` used to raise `ZeroDivisionError` in `account.unrealized` (the line `lp / entry_price`), which aborted `/api/state` before a card could be drawn. The sum now skips a row whose entry is missing or 0, so that row contributes neither a mark nor an invented fee drag. Any positive entry still uses the formula above, including the entry-price fallback when the last price is missing. The card for a zero entry still shows null unrealized. `free()` is unchanged and still subtracts the stake.
 
 A stored last price of 0 or a negative last price is real data. It is shown and marked. It is not replaced with 0 PnL or with the entry price.
 

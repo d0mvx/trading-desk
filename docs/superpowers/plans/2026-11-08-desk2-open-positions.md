@@ -12,7 +12,7 @@
 
 - PAPER display only. LIVE stays locked. No order path.
 - Do not change scanner, Jev, risk decisions, experiments, tags, settings, fees, or executor sizing.
-- Do not change `account.equity`, `account.unrealized`, or `account.free`.
+- Do not change `account.free` or the mark for a positive entry. A zero or missing `entry_price` used to raise `ZeroDivisionError` inside `account.unrealized` and abort `/api/state`. Skip that row in the sum (contribute 0). Do not invent a fee drag for it.
 - Missing last price, zero entry, or null size: `unrealized_usd` and `unrealized_pct` are JSON `null`. Never a fabricated 0.
 - Fee-aware mark, rounded to 4 decimals, matching `positions.pnl_usd` storage: `round(size_usd * (last / entry_price - 1) - (fees_usd or 0), 4)`.
 - Percent is that rounded USD divided by `size_usd` times 100, rounded to 4 decimals. UI labels it Unrealisiert. Do not display open-row `pnl_usd`.

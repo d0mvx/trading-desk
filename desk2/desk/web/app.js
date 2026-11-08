@@ -9,7 +9,7 @@ const TK = "desk_token";
   if (m) { localStorage.setItem(TK, decodeURIComponent(m[1])); history.replaceState(null, "", location.pathname + "#/home"); }
 })();
 const token = () => localStorage.getItem(TK);
-const S = { state: null, lastOk: null, offline: false, retryAt: 0, range: "LIVE", live: {}, chart: null, settings: null, account: null };
+const S = { state: null, lastOk: null, offline: false, snapshotStale: false, stateRetry: null, retryAt: 0, range: "LIVE", live: {}, chart: null, settings: null, account: null };
 
 const CACHE = {};   // last good GET per path: shown when the desk is offline ("keep the last good numbers")
 async function api(path, opt = {}) {
@@ -18,7 +18,13 @@ async function api(path, opt = {}) {
     r = await fetch("/api/" + path, { ...opt, cache: "no-store",
       headers: { "Authorization": "Bearer " + token(), "ngrok-skip-browser-warning": "1", ...(opt.body ? { "Content-Type": "application/json" } : {}), ...(opt.headers || {}) } });
   } catch (e) {
-    if (!opt.method && CACHE[path]) { setOffline(5); setTimeout(() => S.offline && fetch("/api/state", { headers: { "Authorization": "Bearer " + token(), "ngrok-skip-browser-warning": "1" } }).then(x => x.ok && setOnline()).catch(() => setOffline(5)), 5000); return CACHE[path]; }
+    if (!opt.method && CACHE[path]) {
+      setOffline(5);
+      const err = new Error("Desk offline");
+      err.stale = true;
+      err.body = CACHE[path];
+      throw err;
+    }
     throw e;
   }
   if (r.status === 401) { S.unauth = true; render(); throw new Error("unauthorized"); }
@@ -90,13 +96,17 @@ function onChunk(c) {
   for (const l of c.split("\n")) { if (l.startsWith("event:")) ev = l.slice(6).trim(); else if (l.startsWith("data:")) data += l.slice(5).trim(); }
   if (!data) return;
   let d; try { d = JSON.parse(data); } catch { return; }
-  S.lastOk = new Date().toISOString();
   onEvent(ev, d);
 }
 let refreshT = null;
 function refreshSoon() { clearTimeout(refreshT); refreshT = setTimeout(loadState, 400); }
 function onEvent(ev, d) {
-  if (ev === "balance") { if (S.state) { S.state.balance = d.balance; paintBalance(); } if (route().name === "home") loadChart(true); return; }
+  if (ev === "balance") {
+    if (S.state && !S.snapshotStale && !S.offline) { S.state.balance = d.balance; paintBalance(); }
+    if (route().name === "home" && !S.offline) loadChart(true);
+    refreshSoon();
+    return;
+  }
   if (ev === "audit_start") { S.live.audit = { mint: d.mint, name: d.name, layers: {} }; paintCards(); }
   if (ev === "audit_layer") { if (!S.live.audit || S.live.audit.mint !== d.mint) S.live.audit = { mint: d.mint, layers: {} }; S.live.audit.layers[d.layer] = d; paintCards(); AuditScreen.onLayer(d); }
   if (ev === "signal") { S.live.exec = { ...d, t0: Date.now() }; paintCards(); }
@@ -106,11 +116,17 @@ function onEvent(ev, d) {
 
 /* ---------- offline row */
 let offT = null;
+function retryState(n) {
+  if (S.stateRetry) return;
+  S.stateRetry = setTimeout(() => { S.stateRetry = null; loadState(); }, Math.max(1000, n * 1000));
+}
 function setOffline(n) {
-  S.offline = true; S.retryAt = Date.now() + n * 1000; clearInterval(offT);
+  S.offline = true; S.snapshotStale = true; S.retryAt = Date.now() + n * 1000; clearInterval(offT);
   const tick = () => { const el = $("#offline"); if (!el) return; const s = Math.max(0, Math.ceil((S.retryAt - Date.now()) / 1000));
     el.innerHTML = `<div class="err" role="alert">Desk offline · retrying in ${s}s · last update ${S.lastOk ? hm(S.lastOk) : "—"}</div>`; };
   tick(); offT = setInterval(tick, 1000);
+  if (S.state && route().name === "home") paintHome();
+  retryState(n);
 }
 function setOnline() { S.offline = false; clearInterval(offT); const el = $("#offline"); if (el) el.innerHTML = ""; }
 
@@ -172,8 +188,22 @@ addEventListener("hashchange", render);
 
 /* ---------- state */
 async function loadState() {
-  try { S.state = await api("state"); S.lastOk = new Date().toISOString(); setOnline(); paintHome(); }
-  catch (e) { if (e.message !== "unauthorized") { setOffline(5); setTimeout(loadState, 5000); } }
+  try {
+    const body = await api("state");
+    S.state = body;
+    S.lastOk = new Date().toISOString();
+    S.snapshotStale = false;
+    setOnline();
+    paintHome();
+  } catch (e) {
+    if (e.message === "unauthorized") return;
+    if (e.stale) {
+      if (!S.state) S.state = e.body;
+      paintHome();
+      return;
+    }
+    setOffline(5);
+  }
 }
 
 /* ---------- HOME */
@@ -182,6 +212,8 @@ function Home(app) {
     <div class="balance"><div class="big num odo" id="bal">${S.state ? "" : '<span class="loading" style="width:240px;height:66px;display:block"></span>'}</div><span id="paper"></span></div>
     <div class="sub num" id="today">${S.state ? "" : '<span class="loading" style="width:120px;height:18px;display:block"></span>'}</div>
     <div id="warn"></div>
+    <div class="sect"><h2>Offene PAPER-Trades <span id="openN"></span></h2></div>
+    <div id="trades">${S.state ? "" : '<div class="loading" style="height:88px"></div>'}</div>
     <div class="chartwrap ${S.chartData ? "" : "loading"}"><canvas id="chart"></canvas></div>
     <div class="ranges">${["LIVE", "1H", "4H", "1D", "1W", "ALL"].map(k => `<button data-r="${k}" class="${S.range === k ? "on" : ""}">${k}</button>`).join("")}</div>
     <div class="sect"><h2>Agents <span id="running">· ${S.state ? S.state.running : "…"} running</span></h2></div>
@@ -201,12 +233,48 @@ function paintBalance() {
   odometer(el, money(S.state.balance));
   const p = $("#paper"); if (p) p.innerHTML = S.state.mode === "PAPER" ? '<span class="pill paper">PAPER</span>' : "";
 }
+function standLine() {
+  const when = S.lastOk ? hm(S.lastOk) : "—";
+  if (S.snapshotStale || S.offline) return `Stand ${when} · Verbindung weg`;
+  if (!S.lastOk) return "";
+  return `Stand ${when}`;
+}
+function tradeCard(p, serverTime) {
+  const usd = p.unrealized_usd, has = usd != null && p.unrealized_pct != null;
+  const cls = !has ? "" : usd > 0 ? "up" : usd < 0 ? "down" : "";
+  const pnl = has ? `${money(usd)} · ${pct(p.unrealized_pct)}` : "—";
+  const kurs = p.last == null ? "kein Kurs" : price(p.last);
+  const kursTime = p.last_at ? `Kurs ${hm(p.last_at)}` : "";
+  const old = p.last_at && serverTime && (Date.parse(serverTime) - Date.parse(p.last_at) > 90000);
+  const stop = p.stop_price == null ? "—" : (p.stop_pct == null ? price(p.stop_price) : `${price(p.stop_price)} · -${p.stop_pct}%`);
+  const trail = p.trail_active && p.exit_line != null ? price(p.exit_line) : "Trail noch nicht aktiv";
+  const link = p.link ? `<a class="btn s" href="${esc(p.link)}" target="_blank" rel="noopener">Auf pump.fun</a>` : "";
+  return `<div class="pos"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><div class="t1" style="font-weight:600">${esc(p.name)}</div><div class="val num ${cls}">${pnl}</div></div>
+    <div class="krow"><span>Einsatz</span><span class="num">${money(p.size_usd)}</span></div>
+    <div class="krow"><span>Unrealisiert</span><span class="num ${cls}">${pnl}</span></div>
+    <div class="krow"><span>Einstieg</span><span class="num">${price(p.entry_price)}</span></div>
+    <div class="krow"><span>Kurs</span><span class="num" style="${old ? "color:var(--orange)" : ""}">${kurs}${kursTime ? " · " + kursTime : ""}</span></div>
+    <div class="krow"><span>Stop</span><span class="num">${stop}</span></div>
+    <div class="krow"><span>Trail</span><span class="num">${trail}</span></div>
+    ${link}</div>`;
+}
+function tradesHtml(st) {
+  if (!st) return "";
+  if (st.mode !== "PAPER") return `<div class="err">Desk ist nicht im PAPER-Modus</div>`;
+  const stand = standLine();
+  const head = stand ? `<div class="sub num">${esc(stand)}</div>` : "";
+  const rows = st.positions || [];
+  if (!rows.length) return head + `<div class="empty">Keine offenen PAPER-Trades</div>`;
+  return head + rows.map(p => tradeCard(p, st.server_time)).join("");
+}
 function paintHome() {
-  if (route().name !== "home" || !S.state) return;
+  if (route().name !== "home" || !S.state || !$("#today") || !$("#trades")) return;
   const st = S.state;
   paintBalance();
   $("#today").innerHTML = `<span class="${st.today_pct >= 0 ? "up" : "down"}">${pct(st.today_pct)}</span> today <span class="pill ${st.multiplier >= 1 ? "g" : "r"}">${st.multiplier.toFixed(2)}×</span>`;
   $("#warn").innerHTML = st.warning ? `<div class="err" style="color:var(--orange);background:rgba(255,159,10,.14)">${esc(st.warning)}</div>` : "";
+  const openN = $("#openN"); if (openN) openN.textContent = st.mode === "PAPER" && st.positions ? `· ${st.positions.length}` : "";
+  const trades = $("#trades"); if (trades) trades.innerHTML = tradesHtml(st);
   $("#running").textContent = `· ${st.running} running`;
   paintCards();
   $("#act").innerHTML = actList(st.activity);

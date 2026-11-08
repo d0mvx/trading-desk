@@ -17,8 +17,11 @@ def realized(mode="PAPER") -> float:
 def unrealized(mode="PAPER") -> float:
     s = 0.0
     for p in open_positions(mode):
-        lp = last_price(p["mint"]) or p["entry_price"]
-        s += p["size_usd"] * (lp / p["entry_price"] - 1) - (p["fees_usd"] or 0)
+        entry = p["entry_price"]
+        if not entry:
+            continue
+        lp = last_price(p["mint"]) or entry
+        s += p["size_usd"] * (lp / entry - 1) - (p["fees_usd"] or 0)
     return s
 
 def equity() -> float:
