@@ -17,8 +17,11 @@ def realized(mode="PAPER") -> float:
 def unrealized(mode="PAPER") -> float:
     s = 0.0
     for p in open_positions(mode):
-        lp = last_price(p["mint"]) or p["entry_price"]
-        s += p["size_usd"] * (lp / p["entry_price"] - 1) - (p["fees_usd"] or 0)
+        entry = p["entry_price"]
+        if not entry or p["size_usd"] is None:
+            continue
+        lp = last_price(p["mint"]) or entry
+        s += p["size_usd"] * (lp / entry - 1) - (p["fees_usd"] or 0)
     return s
 
 def equity() -> float:
@@ -28,7 +31,7 @@ def equity() -> float:
     return config.get("desk.paper_start_stack") + realized("PAPER") + unrealized("PAPER")
 
 def in_positions() -> float:
-    return sum(p["size_usd"] for p in open_positions())
+    return sum(p["size_usd"] or 0 for p in open_positions())
 
 def free() -> float:
     mode = config.get("desk.mode")

@@ -44,6 +44,30 @@ def name_of(m):
 def act_rows(rows):
     return [{**r, "link": links.coin_url(r["mint"]) if r["mint"] else None, "time": util.local_hm(r["ts"])} for r in rows]
 
+def position_view(p: dict, settings: dict) -> dict:
+    """Display fields for one open row. A missing price stays null; equity's entry fallback is not used here."""
+    row = db.one(
+        "SELECT price, ts FROM prices WHERE mint=? AND price IS NOT NULL ORDER BY ts DESC LIMIT 1",
+        (p["mint"],),
+    )
+    last = row["price"] if row else None
+    last_at = row["ts"] if row else None
+    entry, size = p.get("entry_price"), p.get("size_usd")
+    usd = pct = None
+    if last is not None and entry not in (None, 0) and size is not None:
+        usd = round(size * (last / entry - 1) - (p.get("fees_usd") or 0), 4)
+        pct = round(usd / size * 100, 4) if size else None
+    stop_pct = None
+    if entry not in (None, 0) and p.get("stop_price") is not None:
+        stop_pct = risk_agent.stop_pct_of(p)
+    exit_line = None
+    if p.get("trail_active") and p.get("peak_price") is not None and p.get("stop_price") is not None:
+        exit_line = risk_agent.exit_line(p, settings)
+    return {**p, "name": name_of(p["mint"]), "link": links.coin_url(p["mint"]),
+            "last": last, "last_at": last_at, "unrealized_usd": usd, "unrealized_pct": pct,
+            "stop_pct": stop_pct, "exit_line": exit_line}
+
+
 def night_start_balance():
     r = db.one("SELECT value FROM balance WHERE ts>=? ORDER BY ts LIMIT 1", (night_iso(),))
     return r["value"] if r else account.equity()
@@ -77,7 +101,7 @@ def agents_summary():
           coin=name_of(last_audit["mint"]) if last_audit else None, layers=sorted(layers, key=lambda r: r["layer"])),
         a("analyst", score=v["score"] if v else None, coin=v["symbol"] if v else None, passed=bool(v["pass"]) if v else None,
           min_score=s["analyst.min_score"], mode=s["analyst.mode"]),
-        a("executor", trades=trades, last=({"coin": lastpos["symbol"], "size": lastpos["size_usd"], "pct": round(lastpos["size_usd"] / eq * 100, 1) if eq else None, "ts": lastpos["opened_at"]} if lastpos else None),
+        a("executor", trades=trades, last=({"coin": lastpos["symbol"], "size": lastpos["size_usd"], "pct": round(lastpos["size_usd"] / eq * 100, 1) if eq and lastpos["size_usd"] is not None else None, "ts": lastpos["opened_at"]} if lastpos else None),
           stack_pct=s["executor.stack_pct"]),
         a("risk", guarding=len(opn), last_exit=(lastexit or {}).get("exit_reason"), stop_pct=s["risk.stop_pct"], trail_pct=s["risk.trail_pct"],
           locked=bool(opn)),
@@ -91,11 +115,13 @@ async def state():
     first = db.one("SELECT value FROM balance ORDER BY ts LIMIT 1")
     unread = db.one("SELECT COUNT(*) n FROM pushes WHERE seen=0")["n"]
     hb = db.one("SELECT MAX(ts) t FROM heartbeats")
+    settings = config.all_settings()
+    positions = [position_view(p, settings) for p in sorted(account.open_positions(), key=lambda p: p["id"])]
     return {"mode": config.get("desk.mode"), "balance": round(eq, 2), "today_pct": round((eq / start - 1) * 100, 2) if start else 0,
             "multiplier": round(eq / start, 3) if start else 1.0, "free": round(account.free(), 2),
             "night_start": night_iso(), "agents": agents_summary(), "running": sum(1 for a in AGENTS if not db.paused(a)),
             "activity": act_rows(db.q("SELECT * FROM activity ORDER BY id DESC LIMIT 5")), "unread": unread,
-            "positions": [{**p, "name": name_of(p["mint"]), "link": links.coin_url(p["mint"]), "last": account.last_price(p["mint"])} for p in account.open_positions()],
+            "positions": positions,
             "warning": config.ticket_check(), "updated": hb["t"] if hb else None, "server_time": util.iso()}
 
 RANGES = {"LIVE": None, "1H": 1, "4H": 4, "1D": 24, "1W": 168, "ALL": 10**6}
