@@ -12,13 +12,18 @@ const token = () => localStorage.getItem(TK);
 const S = { state: null, lastOk: null, offline: false, snapshotStale: false, stateRetry: null, retryAt: 0, range: "LIVE", live: {}, chart: null, settings: null, account: null };
 
 const CACHE = {};   // last good GET per path: shown when the desk is offline ("keep the last good numbers")
+let stateGen = 0;
+function stateCurrent(epoch) { return epoch == null || epoch === stateGen; }
 async function api(path, opt = {}) {
+  const epoch = opt.epoch;
+  const { epoch: _epoch, ...rest } = opt;
   let r;
   try {
-    r = await fetch("/api/" + path, { ...opt, cache: "no-store",
-      headers: { "Authorization": "Bearer " + token(), "ngrok-skip-browser-warning": "1", ...(opt.body ? { "Content-Type": "application/json" } : {}), ...(opt.headers || {}) } });
+    r = await fetch("/api/" + path, { ...rest, cache: "no-store",
+      headers: { "Authorization": "Bearer " + token(), "ngrok-skip-browser-warning": "1", ...(rest.body ? { "Content-Type": "application/json" } : {}), ...(rest.headers || {}) } });
   } catch (e) {
-    if (!opt.method && CACHE[path]) {
+    if (!stateCurrent(epoch)) throw e;
+    if (!rest.method && CACHE[path]) {
       setOffline(5);
       if (path === "state") {
         const err = new Error("Desk offline");
@@ -30,11 +35,13 @@ async function api(path, opt = {}) {
     }
     throw e;
   }
+  if (!stateCurrent(epoch)) { const err = new Error("superseded"); err.superseded = true; throw err; }
   if (r.status === 401) { S.unauth = true; render(); throw new Error("unauthorized"); }
   const ct = r.headers.get("content-type") || "";
   const body = ct.includes("json") ? await r.json() : await r.text();
   if (!r.ok) { const e = new Error((body && body.error) || (body && body.detail) || ("HTTP " + r.status)); e.status = r.status; e.body = body; throw e; }
-  if (!opt.method) CACHE[path] = body;
+  if (!stateCurrent(epoch)) { const err = new Error("superseded"); err.superseded = true; throw err; }
+  if (!rest.method) CACHE[path] = body;
   return body;
 }
 const post = (p, b) => api(p, { method: "POST", body: JSON.stringify(b || {}) });
@@ -81,7 +88,8 @@ async function sse() {
     const r = await fetch("/api/stream", { headers: { "Authorization": "Bearer " + token(), "ngrok-skip-browser-warning": "1" }, signal: sseCtl.signal, cache: "no-store" });
     if (r.status === 401) { S.unauth = true; render(); return; }
     if (!r.ok || !r.body) throw new Error("stream " + r.status);
-    setOnline(); sseBack = 1;
+    sseBack = 1;
+    refreshSoon();
     const rd = r.body.getReader(), dec = new TextDecoder(); let buf = "";
     for (;;) {
       const { value, done } = await rd.read(); if (done) break;
@@ -128,7 +136,11 @@ function setOffline(n) {
   const tick = () => { const el = $("#offline"); if (!el) return; const s = Math.max(0, Math.ceil((S.retryAt - Date.now()) / 1000));
     el.innerHTML = `<div class="err" role="alert">Desk offline · retrying in ${s}s · last update ${S.lastOk ? hm(S.lastOk) : "—"}</div>`; };
   tick(); offT = setInterval(tick, 1000);
-  if (S.state && route().name === "home") paintHome();
+  if (route().name === "home" && S.state && $("#today") && $("#trades")) paintHome();
+  else if (route().name === "home" && !S.state) {
+    const trades = $("#trades");
+    if (trades) trades.innerHTML = '<div class="empty">Stand nicht verfügbar</div>';
+  }
   retryState(n);
 }
 function setOnline() { S.offline = false; clearInterval(offT); const el = $("#offline"); if (el) el.innerHTML = ""; }
@@ -191,14 +203,17 @@ addEventListener("hashchange", render);
 
 /* ---------- state */
 async function loadState() {
+  const epoch = ++stateGen;
   try {
-    const body = await api("state");
+    const body = await api("state", { epoch });
+    if (!stateCurrent(epoch)) return;
     S.state = body;
     S.lastOk = new Date().toISOString();
     S.snapshotStale = false;
     setOnline();
     paintHome();
   } catch (e) {
+    if (!stateCurrent(epoch) || e.superseded) return;
     if (e.message === "unauthorized") return;
     if (e.stale) {
       if (!S.state) S.state = e.body;
@@ -257,11 +272,11 @@ function tradeCard(p, serverTime) {
   const stop = p.stop_price == null ? "—" : (p.stop_pct == null ? quotePrice(p.stop_price) : `${quotePrice(p.stop_price)} · -${p.stop_pct}%`);
   const trail = p.trail_active && p.exit_line != null ? quotePrice(p.exit_line) : "Trail noch nicht aktiv";
   const link = p.link ? `<a class="btn s" href="${esc(p.link)}" target="_blank" rel="noopener">Auf pump.fun</a>` : "";
-  return `<div class="pos"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><div class="t1" style="font-weight:600">${esc(p.name)}</div><div class="val num ${cls}">${pnl}</div></div>
+  return `<div class="pos"><div class="nm"><div class="t1">${esc(p.name)}</div><div class="val num ${cls}">${pnl}</div></div>
     <div class="krow"><span>Einsatz</span><span class="num">${money(p.size_usd)}</span></div>
     <div class="krow"><span>Unrealisiert</span><span class="num ${cls}">${pnl}</span></div>
     <div class="krow"><span>Einstieg</span><span class="num">${quotePrice(p.entry_price)}</span></div>
-    <div class="krow"><span>Kurs</span><span class="num" style="${old ? "color:var(--orange)" : ""}">${kurs}${kursTime ? " · " + kursTime : ""}</span></div>
+    <div class="krow"><span>Kurs</span><span class="num">${kurs}${kursTime ? " · " + kursTime : ""}</span></div>
     <div class="krow"><span>Stop</span><span class="num">${stop}</span></div>
     <div class="krow"><span>Trail</span><span class="num">${trail}</span></div>
     ${link}</div>`;
