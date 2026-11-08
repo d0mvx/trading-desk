@@ -101,7 +101,7 @@ def agents_summary():
           coin=name_of(last_audit["mint"]) if last_audit else None, layers=sorted(layers, key=lambda r: r["layer"])),
         a("analyst", score=v["score"] if v else None, coin=v["symbol"] if v else None, passed=bool(v["pass"]) if v else None,
           min_score=s["analyst.min_score"], mode=s["analyst.mode"]),
-        a("executor", trades=trades, last=({"coin": lastpos["symbol"], "size": lastpos["size_usd"], "pct": round(lastpos["size_usd"] / eq * 100, 1) if eq else None, "ts": lastpos["opened_at"]} if lastpos else None),
+        a("executor", trades=trades, last=({"coin": lastpos["symbol"], "size": lastpos["size_usd"], "pct": round(lastpos["size_usd"] / eq * 100, 1) if eq and lastpos["size_usd"] is not None else None, "ts": lastpos["opened_at"]} if lastpos else None),
           stack_pct=s["executor.stack_pct"]),
         a("risk", guarding=len(opn), last_exit=(lastexit or {}).get("exit_reason"), stop_pct=s["risk.stop_pct"], trail_pct=s["risk.trail_pct"],
           locked=bool(opn)),

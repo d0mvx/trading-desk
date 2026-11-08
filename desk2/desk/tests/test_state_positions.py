@@ -134,12 +134,51 @@ def test_closed_and_non_paper_rows_stay_out(tdb, monkeypatch):
         assert _client().get(path, headers=h).status_code == 200
 
 
+def test_zero_price_is_a_real_mark_and_rows_follow_id(tdb, monkeypatch):
+    h = _auth(monkeypatch)
+    db.upsert_coin(M_MISS, symbol="SECOND")
+    db.upsert_coin(M_FEE, symbol="FIRST")
+    _pos(M_MISS, entry=1.0, size=16, stop=0.94, fees=0.2)
+    _pos(M_FEE, entry=1.0, size=10, stop=0.94, fees=0.0)
+    db.price(M_MISS, 0, 1)
+    db.price(M_FEE, 1.5, 1)
+    body = _client().get("/api/state", headers=h).json()
+    assert [p["mint"] for p in body["positions"]] == [M_MISS, M_FEE]
+    assert [p["id"] for p in body["positions"]] == sorted(p["id"] for p in body["positions"])
+    zero = body["positions"][0]
+    assert zero["last"] == 0
+    assert zero["unrealized_usd"] == round(16 * (0 / 1.0 - 1) - 0.2, 4)
+    assert account.unrealized() != zero["unrealized_usd"]
+
+
+def test_null_size_does_not_abort_state(tdb, monkeypatch):
+    h = _auth(monkeypatch)
+    db.upsert_coin(M_ZERO, symbol="NOSIZE")
+    db.x(
+        "INSERT INTO positions(mint,opened_at,entry_price,size_usd,peak_price,stop_price,trail_active,fees_usd,mode) "
+        "VALUES(?,?,?,?,?,?,?,?,?)",
+        (M_ZERO, util.iso(), 1.0, None, 1.0, 0.94, 0, 0.2, "PAPER"),
+    )
+    db.price(M_ZERO, 1.2, 1)
+    res = _client().get("/api/state", headers=h)
+    assert res.status_code == 200
+    p = res.json()["positions"][0]
+    assert p["unrealized_usd"] is None and p["unrealized_pct"] is None
+    assert p["last"] == 1.2
+    assert account.unrealized() == 0
+
+
 def test_client_stamps_last_ok_only_on_success():
     root = os.path.join(os.path.dirname(__file__), "..", "web")
     js = open(os.path.join(root, "app.js"), encoding="utf-8").read()
     html = open(os.path.join(root, "index.html"), encoding="utf-8").read()
     assert js.count("S.lastOk =") == 1
+    stale = js.split("if (e.stale)", 1)[1][:500]
+    assert "S.lastOk" not in stale
+    assert 'path === "state"' in js
     assert "Offene PAPER-Trades" in js and "Keine offenen PAPER-Trades" in js
+    assert "Desk ist nicht im PAPER-Modus" in js and "Trail noch nicht aktiv" in js
     assert "Verbindung weg" in js and "unrealized_usd" in js and "kein Kurs" in js
+    assert "esc(p.name)" in js and "esc(p.link)" in js and "refreshSoon()" in js
     assert "Auf pump.fun" in js
     assert 'src="/app.js?v=20261108-open-trades"' in html

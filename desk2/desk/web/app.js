@@ -20,10 +20,13 @@ async function api(path, opt = {}) {
   } catch (e) {
     if (!opt.method && CACHE[path]) {
       setOffline(5);
-      const err = new Error("Desk offline");
-      err.stale = true;
-      err.body = CACHE[path];
-      throw err;
+      if (path === "state") {
+        const err = new Error("Desk offline");
+        err.stale = true;
+        err.body = CACHE[path];
+        throw err;
+      }
+      return CACHE[path];
     }
     throw e;
   }
@@ -239,20 +242,25 @@ function standLine() {
   if (!S.lastOk) return "";
   return `Stand ${when}`;
 }
+function quotePrice(p) {
+  if (p == null) return "—";
+  const body = price(Math.abs(p));
+  return p < 0 ? "-" + body : body;
+}
 function tradeCard(p, serverTime) {
   const usd = p.unrealized_usd, has = usd != null && p.unrealized_pct != null;
   const cls = !has ? "" : usd > 0 ? "up" : usd < 0 ? "down" : "";
   const pnl = has ? `${money(usd)} · ${pct(p.unrealized_pct)}` : "—";
-  const kurs = p.last == null ? "kein Kurs" : price(p.last);
-  const kursTime = p.last_at ? `Kurs ${hm(p.last_at)}` : "";
+  const kurs = p.last == null ? "kein Kurs" : quotePrice(p.last);
   const old = p.last_at && serverTime && (Date.parse(serverTime) - Date.parse(p.last_at) > 90000);
-  const stop = p.stop_price == null ? "—" : (p.stop_pct == null ? price(p.stop_price) : `${price(p.stop_price)} · -${p.stop_pct}%`);
-  const trail = p.trail_active && p.exit_line != null ? price(p.exit_line) : "Trail noch nicht aktiv";
+  const kursTime = p.last_at ? `<span style="${old ? "color:var(--orange)" : ""}">Kurs ${hm(p.last_at)}</span>` : "";
+  const stop = p.stop_price == null ? "—" : (p.stop_pct == null ? quotePrice(p.stop_price) : `${quotePrice(p.stop_price)} · -${p.stop_pct}%`);
+  const trail = p.trail_active && p.exit_line != null ? quotePrice(p.exit_line) : "Trail noch nicht aktiv";
   const link = p.link ? `<a class="btn s" href="${esc(p.link)}" target="_blank" rel="noopener">Auf pump.fun</a>` : "";
   return `<div class="pos"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><div class="t1" style="font-weight:600">${esc(p.name)}</div><div class="val num ${cls}">${pnl}</div></div>
     <div class="krow"><span>Einsatz</span><span class="num">${money(p.size_usd)}</span></div>
     <div class="krow"><span>Unrealisiert</span><span class="num ${cls}">${pnl}</span></div>
-    <div class="krow"><span>Einstieg</span><span class="num">${price(p.entry_price)}</span></div>
+    <div class="krow"><span>Einstieg</span><span class="num">${quotePrice(p.entry_price)}</span></div>
     <div class="krow"><span>Kurs</span><span class="num" style="${old ? "color:var(--orange)" : ""}">${kurs}${kursTime ? " · " + kursTime : ""}</span></div>
     <div class="krow"><span>Stop</span><span class="num">${stop}</span></div>
     <div class="krow"><span>Trail</span><span class="num">${trail}</span></div>
