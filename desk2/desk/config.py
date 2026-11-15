@@ -16,7 +16,7 @@ SPEC: dict[str, tuple] = {
     "scanner.runner_h24_pct": (300, float, 0, 100_000, "runner = 24h change >= %"),
     "scanner.rocket_pullback_on": (True, bool, None, None, "h1 rocket waits for a pullback instead of a kill"),
     "scanner.rocket_pullback_pct": (15, float, 1, 90, "rocket passes after pulling back >= % from its room peak"),
-    "scanner.established_on": (True, bool, None, None, "second scanner: established pump.fun coins"),
+    "scanner.established_on": (False, bool, None, None, "second scanner: established pump.fun coins"),
     "scanner.established_every_min": (10, int, 2, 240, "established scan every min"),
     "scanner.established_min_age_days": (1, float, 0, 3650, "established min pool age days"),
     "scanner.established_max_age_days": (30, float, 0, 3650, "established max pool age days"),
@@ -50,6 +50,7 @@ SPEC: dict[str, tuple] = {
     "analyst.rules_chase_h1_pct": (80, float, 0, 100_000, "rules: chase if 1h up > %"),
     # Executor
     "executor.stack_pct": (8, float, 0.1, 100, "size % of stack"),
+    "executor.block_after_loss": (True, bool, None, None, "no new position after a losing PAPER trade on that mint"),
     "executor.max_pool_pct": (2, float, 0.01, 100, "max % of pool liquidity"),
     "executor.borderline_on": (True, bool, None, None, "smaller ticket for borderline passes"),
     "executor.borderline_stack_pct": (4, float, 0.1, 100, "borderline size % of stack"),
