@@ -27,6 +27,17 @@ def size_for(stack: float, free: float, liquidity: float | None, s: dict) -> tup
         return None, "no free stack", cap
     return round(size, 2), None, cap
 
+LOSS_REASON = "lost on this mint before"
+
+def loss_block(mint: str, s: dict) -> str | None:
+    """permanent while the setting is on. pnl_usd is realized and already net of fees.
+    Read from positions on every call so a shift restart keeps the block."""
+    if not s["executor.block_after_loss"]:
+        return None
+    if db.one("SELECT 1 FROM positions WHERE mint=? AND mode='PAPER' AND closed_at IS NOT NULL AND pnl_usd < 0", (mint,)):
+        return LOSS_REASON
+    return None
+
 def borderline_reasons(item: dict, s: dict) -> list[str]:
     """borderline pass: Jev score < 60 or a metric within 0.05 of its threshold (analyst), bundled 5-6, top10 25-30."""
     why = list((item.get("analyst") or {}).get("borderline") or [])
@@ -62,7 +73,7 @@ async def execute(item: dict) -> dict:
     size, why, cap = size_for(stack, free, v["liquidity"] if v else None, s_size)
     if bl and not why:
         cap = f"half_size: {', '.join(bl)}" if cap == "stack_pct" else f"{cap}; borderline"
-    reason = why
+    reason = loss_block(m, s) or why
     if not reason and (not v or v["price"] is None):
         reason = "no price"
     if not reason and item.get("scan_liq") and v["liquidity"] is not None and \

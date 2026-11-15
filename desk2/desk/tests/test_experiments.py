@@ -118,6 +118,7 @@ def _ds(mint, days, liq, dex="pumpswap"):
 
 def test_established_scan(tdb, monkeypatch):
     scanner.room.clear()
+    config.set("scanner.established_on", True, "t")   # paused by default; on = the scanner as it was
     gt = [_gt("Good1pump", 5, 150_000), _gt("Young1pump", 0.3, 500_000), _gt("Old1pump", 90, 500_000),
           _gt("Thin1pump", 5, 50_000), _gt("NotPumpMint", 5, 900_000)]
     async def gtp(page, sort): return gt if page == 1 else []
